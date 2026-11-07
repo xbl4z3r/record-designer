@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { ProjectData, StudioBackground, StudioDisplayMode, SlipmatStyle } from '../../types';
 import { vinylAudio } from '../../utils/audio';
-import { buildVinylMesh, buildJacketMesh, buildTurntablePlayerMesh } from '../../utils/threeModels';
+import { buildStudioSceneMeshes, BuiltStudioMeshes } from '../../utils/threeModels';
 import {
   Play,
   Pause,
@@ -15,9 +15,6 @@ import {
   Disc,
   Compass,
   Palette,
-  Maximize2,
-  RotateCw,
-  Sliders,
 } from 'lucide-react';
 
 interface StudioViewerProps {
@@ -39,30 +36,50 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const [pitch, setPitch] = useState<number>(0);
   const [audioCrackle, setAudioCrackle] = useState<boolean>(false);
   const [side, setSide] = useState<'A' | 'B'>('A');
-  const [extraction, setExtraction] = useState<number>(0.55); // 0 = inside sleeve, 1 = fully out
+  const [extraction, setExtraction] = useState<number>(0.55); // 0 to 1
+  const [showSheen, setShowSheen] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
-  // Three.js internal refs
+  // Mutable refs for animation loop
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+
+  const rpmRef = useRef(rpm);
+  rpmRef.current = rpm;
+
+  const pitchRef = useRef(pitch);
+  pitchRef.current = pitch;
+
+  const sideRef = useRef(side);
+  sideRef.current = side;
+
+  const extractionRef = useRef(extraction);
+  extractionRef.current = extraction;
+
+  const displayModeRef = useRef(displayMode);
+  displayModeRef.current = displayMode;
+
+  const showSheenRef = useRef(showSheen);
+  showSheenRef.current = showSheen;
+
+  // Three.js internal scene references
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const vinylGroupRef = useRef<THREE.Group | null>(null);
-  const jacketGroupRef = useRef<THREE.Group | null>(null);
-  const turntableGroupRef = useRef<THREE.Group | null>(null);
-  const tonearmRef = useRef<THREE.Group | null>(null);
+  const meshesRef = useRef<BuiltStudioMeshes | null>(null);
+  const rimLightRef = useRef<THREE.DirectionalLight | null>(null);
 
-  // Orbit camera state (Spherical angles)
+  // Camera Orbit state
   const cameraOrbit = useRef<{ theta: number; phi: number; radius: number; target: THREE.Vector3 }>({
-    theta: -0.35,
-    phi: 1.15,
-    radius: 9.8,
+    theta: -0.32,
+    phi: 1.18,
+    radius: 9.6,
     target: new THREE.Vector3(0, 0, 0),
   });
-  const isDraggingRef = useRef<boolean>(false);
-  const prevMousePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const prevMousePos = useRef({ x: 0, y: 0 });
 
-  // Update Camera position from spherical coords
-  const updateCameraFromOrbit = useCallback(() => {
+  const updateCameraPosition = useCallback(() => {
     if (!cameraRef.current) return;
     const { theta, phi, radius, target } = cameraOrbit.current;
     const sinPhi = Math.sin(phi);
@@ -78,54 +95,65 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     cameraRef.current.lookAt(target);
   }, []);
 
-  // Initialize Three.js WebGL Scene
+  // 1. Single Unified Three.js Scene Setup (immune to StrictMode blanking)
   useEffect(() => {
     if (!mountRef.current) return;
     const container = mountRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
 
-    // 1. Scene
+    const width = container.clientWidth || 800;
+    const height = container.clientHeight || 600;
+
+    // Create Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // 2. Camera
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    // Create Camera
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     cameraRef.current = camera;
-    updateCameraFromOrbit();
+    updateCameraPosition();
 
-    // 3. Renderer with antialiasing and shadow maps
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    // Create Renderer
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+    });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    mountRef.current.appendChild(renderer.domElement);
+    renderer.toneMappingExposure = 1.25;
+
+    // Clear old children if any
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+    container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // 4. Lighting Rig (Key, Fill, Rim, Ambient)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    // 4-Point Lighting Rig
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    keyLight.position.set(6, 9, 7);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    keyLight.position.set(6, 10, 8);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.bias = -0.0005;
+    keyLight.shadow.bias = -0.0003;
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 1.2);
-    fillLight.position.set(-7, 4, 4);
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 1.4);
+    fillLight.position.set(-8, 5, 5);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xf43f5e, 0.8);
-    rimLight.position.set(2, -3, -6);
+    const rimLight = new THREE.DirectionalLight(0xf43f5e, 1.0);
+    rimLight.position.set(2, -2, -6);
     scene.add(rimLight);
+    rimLightRef.current = rimLight;
 
-    // Floor Contact Shadow Receiver
+    // Soft Shadow Receiving Floor
     const floorGeo = new THREE.PlaneGeometry(30, 30);
     const floorMat = new THREE.ShadowMaterial({ opacity: 0.35 });
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
@@ -134,79 +162,28 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
-    // 5. Resize observer
-    const handleResize = () => {
-      if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
-      const w = mountRef.current.clientWidth;
-      const h = mountRef.current.clientHeight;
-      cameraRef.current.aspect = w / h;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(w, h);
-    };
+    // Build all Studio 3D Meshes IMMEDIATELY
+    const meshes = buildStudioSceneMeshes(project, slipmat);
+    meshesRef.current = meshes;
 
-    window.addEventListener('resize', handleResize);
+    scene.add(meshes.jacketGroup);
+    scene.add(meshes.vinylGroup);
+    scene.add(meshes.turntableGroup);
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      renderer.dispose();
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+    // ResizeObserver to always keep aspect ratio accurate
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        if (w > 0 && h > 0 && cameraRef.current && rendererRef.current) {
+          cameraRef.current.aspect = w / h;
+          cameraRef.current.updateProjectionMatrix();
+          rendererRef.current.setSize(w, h, false);
+        }
       }
-    };
-  }, [updateCameraFromOrbit]);
+    });
+    resizeObserver.observe(container);
 
-  // Rebuild 3D Meshes whenever project data changes
-  useEffect(() => {
-    if (!sceneRef.current) return;
-    const scene = sceneRef.current;
-
-    // Remove existing meshes
-    if (vinylGroupRef.current) scene.remove(vinylGroupRef.current);
-    if (jacketGroupRef.current) scene.remove(jacketGroupRef.current);
-    if (turntableGroupRef.current) scene.remove(turntableGroupRef.current);
-
-    // Build new meshes
-    const vinylMesh = buildVinylMesh(project);
-    vinylGroupRef.current = vinylMesh;
-
-    const jacketMesh = buildJacketMesh(project);
-    jacketGroupRef.current = jacketMesh;
-
-    const turntableMesh = buildTurntablePlayerMesh(project);
-    turntableGroupRef.current = turntableMesh;
-    tonearmRef.current = turntableMesh.getObjectByName('TonearmGroup') as THREE.Group;
-
-    if (displayMode === 'sleeve_and_disc') {
-      scene.add(jacketMesh);
-      scene.add(vinylMesh);
-    } else {
-      scene.add(turntableMesh);
-      scene.add(vinylMesh);
-    }
-  }, [project, displayMode]);
-
-  // Toggle visible mode
-  useEffect(() => {
-    if (!sceneRef.current) return;
-    const scene = sceneRef.current;
-    if (displayMode === 'sleeve_and_disc') {
-      if (turntableGroupRef.current) scene.remove(turntableGroupRef.current);
-      if (jacketGroupRef.current) scene.add(jacketGroupRef.current);
-      if (vinylGroupRef.current) scene.add(vinylGroupRef.current);
-      cameraOrbit.current.radius = 9.8;
-      cameraOrbit.current.target.set(0, 0, 0);
-    } else {
-      if (jacketGroupRef.current) scene.remove(jacketGroupRef.current);
-      if (turntableGroupRef.current) scene.add(turntableGroupRef.current);
-      if (vinylGroupRef.current) scene.add(vinylGroupRef.current);
-      cameraOrbit.current.radius = 11.5;
-      cameraOrbit.current.target.set(0, 0, 0);
-    }
-    updateCameraFromOrbit();
-  }, [displayMode, updateCameraFromOrbit]);
-
-  // Animation render loop (Rotation, Extraction, Tonearm kinematics)
-  useEffect(() => {
+    // Main Animation Loop
     let animId: number;
     let lastTime = performance.now();
 
@@ -214,44 +191,68 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       const delta = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
 
-      // 1. Vinyl continuous spin
-      if (isPlaying && vinylGroupRef.current) {
-        const effectiveRpm = rpm * (1 + pitch / 100);
+      const currentMode = displayModeRef.current;
+      const currentExtraction = extractionRef.current;
+      const currentSide = sideRef.current;
+      const spinning = isPlayingRef.current;
+      const currentRpm = rpmRef.current;
+      const currentPitch = pitchRef.current;
+
+      // Update Rim Light Sheen
+      if (rimLightRef.current) {
+        rimLightRef.current.intensity = showSheenRef.current ? 1.0 : 0.05;
+      }
+
+      // 1. Vinyl disc spinning around its center spindle
+      if (spinning && meshes.discMesh) {
+        const effectiveRpm = currentRpm * (1 + currentPitch / 100);
         const radPerSec = (effectiveRpm / 60) * 2 * Math.PI;
-
-        if (displayMode === 'sleeve_and_disc') {
-          // Disc spins around its face axis (Z axis of jacket)
-          vinylGroupRef.current.rotation.y += radPerSec * delta;
-        } else {
-          // Turntable mode: disc sits flat on platter (spins around Y axis)
-          vinylGroupRef.current.rotation.y += radPerSec * delta;
-        }
+        meshes.discMesh.rotation.y += radPerSec * delta;
       }
 
-      // 2. Position Vinyl disc depending on mode
-      if (vinylGroupRef.current) {
-        if (displayMode === 'sleeve_and_disc') {
-          // Slide disc out of sleeve along X axis
-          const discX = -0.5 + extraction * 2.8;
-          vinylGroupRef.current.position.set(discX, 0, 0.05);
+      // 2. Mode layouts
+      if (currentMode === 'sleeve_and_disc') {
+        // Sleeve Mode: Turntable is hidden
+        meshes.turntableGroup.visible = false;
+        meshes.jacketGroup.visible = true;
 
-          // Disc is upright in sleeve mode
-          vinylGroupRef.current.rotation.x = side === 'A' ? Math.PI / 2 : -Math.PI / 2;
-          vinylGroupRef.current.rotation.z = 0;
-        } else {
-          // Disc lies flat on Turntable platter (-0.8, 0.24, 0)
-          vinylGroupRef.current.position.set(-0.8, 0.25, 0);
-          vinylGroupRef.current.rotation.x = side === 'A' ? 0 : Math.PI;
-        }
+        // Position jacket on the left
+        meshes.jacketGroup.position.set(-1.0, 0, 0);
+        meshes.jacketGroup.rotation.set(0, 0, 0);
+
+        // Disc slides out from jacket to the right
+        const discX = -1.0 + currentExtraction * 2.7;
+        meshes.vinylGroup.position.set(discX, 0, 0.08);
+
+        // Disc is upright in sleeve mode
+        meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
+        meshes.vinylGroup.rotation.z = 0;
+      } else {
+        // Turntable Mode: Deck is visible in center
+        meshes.turntableGroup.visible = true;
+
+        // Prop album jacket behind the deck like "NOW PLAYING" stand
+        meshes.jacketGroup.visible = true;
+        meshes.jacketGroup.position.set(0, 1.85, -3.2);
+        meshes.jacketGroup.rotation.set(-0.16, 0, 0);
+
+        // Vinyl disc sits on the rotating platter
+        meshes.vinylGroup.position.set(-0.8, 0.25, 0);
+        meshes.vinylGroup.rotation.x = currentSide === 'A' ? 0 : Math.PI;
+        meshes.vinylGroup.rotation.z = 0;
       }
 
-      // 3. Tonearm smooth pivot animation
-      if (tonearmRef.current) {
-        const targetRotY = isPlaying ? -0.22 : 0.45;
-        tonearmRef.current.rotation.y = THREE.MathUtils.lerp(tonearmRef.current.rotation.y, targetRotY, 0.08);
+      // 3. Tonearm pivot animation
+      if (meshes.tonearmGroup) {
+        const targetArmAngle = spinning ? -0.22 : 0.45;
+        meshes.tonearmGroup.rotation.y = THREE.MathUtils.lerp(
+          meshes.tonearmGroup.rotation.y,
+          targetArmAngle,
+          0.08
+        );
       }
 
-      // 4. Render 3D Scene
+      // 4. Render
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
@@ -260,8 +261,35 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     };
 
     animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
-  }, [isPlaying, rpm, pitch, displayMode, extraction, side]);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      resizeObserver.disconnect();
+      renderer.dispose();
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+    };
+  }, []); // Run once on mount
+
+  // 2. Instant Material / Texture Updates when project or slipmat changes
+  useEffect(() => {
+    if (meshesRef.current) {
+      meshesRef.current.updateMaterials(project, slipmat);
+    }
+  }, [project, slipmat]);
+
+  // 3. Camera adjustments on mode switch
+  useEffect(() => {
+    if (displayMode === 'sleeve_and_disc') {
+      cameraOrbit.current.radius = 9.6;
+      cameraOrbit.current.target.set(0, 0, 0);
+    } else {
+      cameraOrbit.current.radius = 11.2;
+      cameraOrbit.current.target.set(0, 0, 0);
+    }
+    updateCameraPosition();
+  }, [displayMode, updateCameraPosition]);
 
   // Audio crackle handling
   useEffect(() => {
@@ -275,7 +303,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     };
   }, [isPlaying, audioCrackle]);
 
-  // Mouse & Touch 3D Orbit Controls
+  // Orbit Mouse & Touch Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, input, select')) return;
     isDraggingRef.current = true;
@@ -288,10 +316,12 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     const dy = e.clientY - prevMousePos.current.y;
     prevMousePos.current = { x: e.clientX, y: e.clientY };
 
-    // Update spherical angles
     cameraOrbit.current.theta -= dx * 0.007;
-    cameraOrbit.current.phi = Math.max(0.15, Math.min(Math.PI / 2 - 0.05, cameraOrbit.current.phi - dy * 0.007));
-    updateCameraFromOrbit();
+    cameraOrbit.current.phi = Math.max(
+      0.15,
+      Math.min(Math.PI / 2 - 0.05, cameraOrbit.current.phi - dy * 0.007)
+    );
+    updateCameraPosition();
   };
 
   const handleMouseUp = () => {
@@ -300,30 +330,33 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    cameraOrbit.current.radius = Math.max(4.5, Math.min(18.0, cameraOrbit.current.radius + e.deltaY * 0.008));
-    updateCameraFromOrbit();
+    cameraOrbit.current.radius = Math.max(
+      4.5,
+      Math.min(18.0, cameraOrbit.current.radius + e.deltaY * 0.008)
+    );
+    updateCameraPosition();
   };
 
   // Camera Presets
   const setCameraPreset = (preset: 'hero' | 'front' | 'top' | 'side') => {
     if (preset === 'hero') {
-      cameraOrbit.current.theta = -0.35;
-      cameraOrbit.current.phi = 1.15;
-      cameraOrbit.current.radius = displayMode === 'turntable' ? 11.5 : 9.8;
+      cameraOrbit.current.theta = -0.32;
+      cameraOrbit.current.phi = 1.18;
+      cameraOrbit.current.radius = displayMode === 'turntable' ? 11.2 : 9.6;
     } else if (preset === 'front') {
       cameraOrbit.current.theta = 0;
-      cameraOrbit.current.phi = Math.PI / 2;
-      cameraOrbit.current.radius = 8.5;
+      cameraOrbit.current.phi = Math.PI / 2 - 0.02;
+      cameraOrbit.current.radius = 8.8;
     } else if (preset === 'top') {
       cameraOrbit.current.theta = 0;
-      cameraOrbit.current.phi = 0.2;
-      cameraOrbit.current.radius = 9.5;
+      cameraOrbit.current.phi = 0.22;
+      cameraOrbit.current.radius = 9.8;
     } else if (preset === 'side') {
       cameraOrbit.current.theta = -Math.PI / 2;
       cameraOrbit.current.phi = 1.25;
-      cameraOrbit.current.radius = 9.0;
+      cameraOrbit.current.radius = 9.2;
     }
-    updateCameraFromOrbit();
+    updateCameraPosition();
   };
 
   const togglePlay = () => {
@@ -357,7 +390,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     }
   };
 
-  // 3D High-Res Snapshot
+  // Snapshot capture
   const handleExportSnapshot = () => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
     setIsExporting(true);
@@ -366,7 +399,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       const dataUrl = rendererRef.current?.domElement.toDataURL('image/png');
       if (dataUrl) {
         const link = document.createElement('a');
-        link.download = `${project.jacket.albumTitle || 'vinyl'}-webgl-3d.png`;
+        link.download = `${project?.jacket?.albumTitle || 'vinyl'}-3d-view.png`;
         link.href = dataUrl;
         link.click();
       }
@@ -482,7 +515,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         {/* Play / Spin Toggle */}
         <button
           onClick={togglePlay}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-sans font-medium transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full font-sans font-medium transition-all ${
             isPlaying
               ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]'
               : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
@@ -547,7 +580,21 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
           <span className="hidden sm:inline">CRACKLE</span>
         </button>
 
-        {/* Extraction Slider (only in sleeve mode) */}
+        {/* Sheen Toggle */}
+        <button
+          onClick={() => setShowSheen(!showSheen)}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${
+            showSheen
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+              : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400'
+          }`}
+          title="Vinyl Light Reflection Sheen"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">SHEEN</span>
+        </button>
+
+        {/* Mode-specific Controls */}
         {displayMode === 'sleeve_and_disc' ? (
           <>
             <div className="h-4 w-px bg-zinc-800" />
@@ -561,12 +608,11 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 value={extraction}
                 onChange={(e) => setExtraction(parseFloat(e.target.value))}
                 className="w-16 md:w-20 h-1 bg-zinc-800 rounded-lg cursor-pointer"
-                title="Disc Extraction"
+                title="Disc Sleeve Extraction"
               />
             </div>
           </>
         ) : (
-          /* Pitch Slider (in Turntable mode) */
           <>
             <div className="h-4 w-px bg-zinc-800" />
             <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
@@ -579,18 +625,33 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 value={pitch}
                 onChange={(e) => setPitch(parseFloat(e.target.value))}
                 className="w-14 h-1 bg-zinc-800 rounded cursor-pointer"
-                title="Pitch (+/- 8%)"
+                title="Pitch adjustment (+/- 8%)"
               />
-              <span className={pitch === 0 ? 'text-emerald-400' : 'text-zinc-300'}>
+              <span className={pitch === 0 ? 'text-emerald-400 font-semibold' : 'text-zinc-300'}>
                 {pitch > 0 ? `+${pitch}%` : `${pitch}%`}
               </span>
+            </div>
+
+            {/* Slipmat Selector */}
+            <div className="flex items-center bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 text-[10px]">
+              {(['felt_black', 'cork', 'geometric'] as SlipmatStyle[]).map((mat) => (
+                <button
+                  key={mat}
+                  onClick={() => setSlipmat(mat)}
+                  className={`px-2 py-0.5 rounded capitalize ${
+                    slipmat === mat ? 'bg-zinc-800 text-white font-semibold' : 'text-zinc-500'
+                  }`}
+                >
+                  {mat === 'felt_black' ? 'Felt' : mat}
+                </button>
+              ))}
             </div>
           </>
         )}
 
         <div className="h-4 w-px bg-zinc-800" />
 
-        {/* Export 3D WebGL Snapshot Button */}
+        {/* Export 3D Snapshot Button */}
         <button
           onClick={handleExportSnapshot}
           disabled={isExporting}
@@ -602,7 +663,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       </div>
 
       {/* Subtle Hint Overlay */}
-      <div className="absolute bottom-16 md:bottom-20 text-[10px] font-mono text-zinc-500/70 pointer-events-none">
+      <div className="absolute bottom-16 md:bottom-20 text-[10px] font-mono text-zinc-500/80 pointer-events-none">
         Click & drag to orbit in 3D WebGL • Scroll to zoom in/out
       </div>
     </div>
