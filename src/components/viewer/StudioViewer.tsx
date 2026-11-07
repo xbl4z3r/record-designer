@@ -164,6 +164,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     meshesRef.current = meshes;
 
     scene.add(meshes.jacketGroup);
+    scene.add(meshes.innerSleeveGroup);
     scene.add(meshes.vinylGroup);
     scene.add(meshes.turntableGroup);
 
@@ -212,14 +213,18 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         // Sleeve Mode: Turntable is hidden
         meshes.turntableGroup.visible = false;
         meshes.jacketGroup.visible = true;
+        meshes.innerSleeveGroup.visible = true;
 
         // Position jacket on the left
         meshes.jacketGroup.position.set(-1.2, 0, 0);
         meshes.jacketGroup.rotation.set(0, 0, 0);
 
-        // Disc sits INSIDE the hollow sleeve pocket at Z = 0 (between front and back covers)
-        // At extraction = 0: disc is nestled completely inside the sleeve cavity
-        // At extraction = 1: disc is fully drawn out through the right mouth
+        // Anti-static inner sleeve emerges partially as extraction begins
+        const innerX = -1.2 + currentExtraction * 1.45;
+        meshes.innerSleeveGroup.position.set(innerX, 0, 0);
+        meshes.innerSleeveGroup.rotation.set(0, 0, 0);
+
+        // Disc sits INSIDE the inner sleeve and slides all the way out through the mouth
         const discX = -1.2 + currentExtraction * 3.2;
         meshes.vinylGroup.position.set(discX, 0, 0);
 
@@ -229,6 +234,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       } else {
         // Turntable Mode: Deck is visible in center
         meshes.turntableGroup.visible = true;
+        meshes.innerSleeveGroup.visible = false;
 
         // Prop album jacket behind the deck like "NOW PLAYING" stand
         meshes.jacketGroup.visible = true;

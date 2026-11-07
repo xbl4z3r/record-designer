@@ -20,7 +20,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
   onUpdateProject,
   onLoadPreset,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<'release' | 'vinyl' | 'jacket' | 'label' | 'obi'>('release');
+  const [activeTab, setActiveTab] = React.useState<'release' | 'vinyl' | 'jacket' | 'inner' | 'label' | 'obi'>('release');
 
   const updateVinyl = (partial: Partial<ProjectData['vinyl']>) => {
     onUpdateProject((prev) => ({
@@ -33,6 +33,13 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
     onUpdateProject((prev) => ({
       ...prev,
       jacket: { ...prev.jacket, ...partial },
+    }));
+  };
+
+  const updateInner = (partial: Partial<ProjectData['innerSleeve']>) => {
+    onUpdateProject((prev) => ({
+      ...prev,
+      innerSleeve: { ...prev.innerSleeve, ...partial },
     }));
   };
 
@@ -145,6 +152,14 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
           }`}
         >
           Sleeve
+        </button>
+        <button
+          onClick={() => setActiveTab('inner')}
+          className={`flex-1 py-1 rounded transition-colors text-center ${
+            activeTab === 'inner' ? 'bg-zinc-800 text-white font-semibold' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          Inner
         </button>
         <button
           onClick={() => setActiveTab('label')}
@@ -298,6 +313,69 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               </div>
             </div>
 
+            {/* Quick Colorway Presets */}
+            <div>
+              <span className="text-[10px] font-mono text-zinc-500 block mb-1.5 uppercase">Quick Colorways</span>
+              <div className="grid grid-cols-4 gap-1.5 text-[10px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'standard_black', primaryColor: '#121214' })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Black
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'transparent', primaryColor: '#ffffff', transparency: 0.9 })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'solid', primaryColor: '#b91c1c' })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Cherry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'splatter', primaryColor: '#f8fafc', splatterColor: '#ec4899', splatterColor2: '#6366f1', splatterDensity: 56 })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Nebula
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'glow_in_the_dark', primaryColor: '#16a34a', glowColor: '#22c55e' })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Glow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'tri_color_split', primaryColor: '#ef4444', secondaryColor: '#ffffff', splatterColor: '#3b82f6' })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Tri-Color
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'color_in_color', primaryColor: '#0284c7', secondaryColor: '#f43f5e' })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Rim Blob
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateVinyl({ colorStyle: 'liquid_glitter', primaryColor: '#18181b' })}
+                  className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300"
+                >
+                  Glitter
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Color Effect / Material</label>
               <select
@@ -307,12 +385,15 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               >
                 <option value="standard_black">Standard Black Audiophile</option>
                 <option value="solid">Solid Custom Color</option>
-                <option value="transparent">Translucent / Clear Vinyl</option>
-                <option value="marble">Marble Swirl Effect</option>
-                <option value="splatter">Splatter Droplets Effect</option>
+                <option value="transparent">Translucent / Clear Crystal Vinyl</option>
+                <option value="splatter">Multi-Color Splatter Droplets</option>
                 <option value="color_in_color">Color-in-Color Rim Effect</option>
-                <option value="half_and_half">Half & Half Split</option>
-                <option value="picture_disc">Full Picture Disc</option>
+                <option value="half_and_half">Half & Half Split (2-tone)</option>
+                <option value="tri_color_split">Tri-Color Split (3-pie slice)</option>
+                <option value="marble">Marble / Smoke Swirl Effect</option>
+                <option value="glow_in_the_dark">Phosphorescent Glow in the Dark</option>
+                <option value="liquid_glitter">Liquid Metallic Mica Glitter</option>
+                <option value="picture_disc">Full Picture Disc (Double-Sided)</option>
               </select>
             </div>
 
@@ -341,40 +422,125 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               )}
 
               {project.vinyl.colorStyle === 'splatter' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-zinc-400">Splatter Fleck Color 1</span>
+                    <input
+                      type="color"
+                      value={project.vinyl.splatterColor}
+                      onChange={(e) => updateVinyl({ splatterColor: e.target.value })}
+                      className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-zinc-400">Splatter Fleck Color 2</span>
+                    <input
+                      type="color"
+                      value={project.vinyl.splatterColor2 || '#6366f1'}
+                      onChange={(e) => updateVinyl({ splatterColor2: e.target.value })}
+                      className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[10px] font-mono text-zinc-500 mb-1">
+                      <span>SPLATTER DENSITY</span>
+                      <span>{project.vinyl.splatterDensity || 48} flecks</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="12"
+                      max="96"
+                      step="4"
+                      value={project.vinyl.splatterDensity || 48}
+                      onChange={(e) => updateVinyl({ splatterDensity: parseInt(e.target.value) })}
+                      className="w-full h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                </>
+              )}
+
+              {project.vinyl.colorStyle === 'glow_in_the_dark' && (
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-zinc-400">Splatter Fleck Color</span>
+                  <span className="text-[11px] font-mono text-zinc-400">Glow Hue</span>
                   <input
                     type="color"
-                    value={project.vinyl.splatterColor}
-                    onChange={(e) => updateVinyl({ splatterColor: e.target.value })}
+                    value={project.vinyl.glowColor || '#22c55e'}
+                    onChange={(e) => updateVinyl({ glowColor: e.target.value })}
                     className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
                   />
                 </div>
               )}
 
+              {project.vinyl.colorStyle === 'transparent' && (
+                <div>
+                  <div className="flex justify-between text-[10px] font-mono text-zinc-500 mb-1">
+                    <span>TRANSPARENCY</span>
+                    <span>{Math.round((project.vinyl.transparency || 0.8) * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="0.95"
+                    step="0.05"
+                    value={project.vinyl.transparency || 0.8}
+                    onChange={(e) => updateVinyl({ transparency: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                  />
+                </div>
+              )}
+
               {project.vinyl.colorStyle === 'picture_disc' && (
-                <div className="pt-2">
-                  <label className="text-[10px] font-mono text-zinc-400 block mb-1">Picture Disc Graphic Image</label>
-                  <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white cursor-pointer text-[11px] font-mono transition-colors">
-                      <Upload className="w-3 h-3 text-amber-400" />
-                      <span>{project.vinyl.pictureDiscImage ? 'Replace Disc Graphic' : 'Upload Disc Graphic'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageUpload(e, (data) => updateVinyl({ pictureDiscImage: data }))}
-                        className="hidden"
-                      />
-                    </label>
-                    {project.vinyl.pictureDiscImage && (
-                      <button
-                        onClick={() => updateVinyl({ pictureDiscImage: null })}
-                        className="p-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-rose-400"
-                        title="Remove graphic"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+                <div className="pt-2 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-mono text-zinc-400 block mb-1">Picture Disc Side A Graphic</label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white cursor-pointer text-[11px] font-mono transition-colors">
+                        <Upload className="w-3 h-3 text-amber-400" />
+                        <span>{project.vinyl.pictureDiscImage ? 'Replace Side A Art' : 'Upload Side A Art'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(e, (data) => updateVinyl({ pictureDiscImage: data }))}
+                          className="hidden"
+                        />
+                      </label>
+                      {project.vinyl.pictureDiscImage && (
+                        <button
+                          onClick={() => updateVinyl({ pictureDiscImage: null })}
+                          className="p-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-rose-400"
+                          title="Remove graphic"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-mono text-zinc-400 block mb-1">Picture Disc Side B Graphic</label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white cursor-pointer text-[11px] font-mono transition-colors">
+                        <Upload className="w-3 h-3 text-cyan-400" />
+                        <span>{project.vinyl.pictureDiscBackImage ? 'Replace Side B Art' : 'Upload Side B Art'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(e, (data) => updateVinyl({ pictureDiscBackImage: data }))}
+                          className="hidden"
+                        />
+                      </label>
+                      {project.vinyl.pictureDiscBackImage && (
+                        <button
+                          onClick={() => updateVinyl({ pictureDiscBackImage: null })}
+                          className="p-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-rose-400"
+                          title="Remove graphic"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -572,6 +738,158 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               />
               <span className="text-zinc-300 font-mono text-[11px]">Center Aperture Window (100mm)</span>
             </label>
+          </div>
+        )}
+
+        {/* TAB: ANTI-STATIC INNER SLEEVE */}
+        {activeTab === 'inner' && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Anti-Static Sleeve Style</label>
+              <select
+                value={project.innerSleeve.type}
+                onChange={(e) => updateInner({ type: e.target.value as any })}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-zinc-300 font-mono text-xs outline-none"
+              >
+                <option value="anti_static_rice_paper">MoFi Archival Rice Paper (Frosted HDPE)</option>
+                <option value="poly_lined_paper">Poly-Lined White Paper Sleeve</option>
+                <option value="poly_lined_black">Poly-Lined Audiophile Black Paper</option>
+                <option value="japanese_u_bottom">Nagaoka Japanese U-Bottom Clear HDPE</option>
+                <option value="printed_heavyweight">Custom Printed 250gsm Heavyweight Bag</option>
+                <option value="heavyweight_kraft">Unbleached Heavyweight Kraft Paper</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Corner Style</label>
+                <select
+                  value={project.innerSleeve.cornerStyle || 'square'}
+                  onChange={(e) => updateInner({ cornerStyle: e.target.value as any })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-zinc-300 font-mono text-xs outline-none"
+                >
+                  <option value="square">Square Corners</option>
+                  <option value="rounded">U-Bottom Rounded</option>
+                  <option value="clipped">Clipped Slipcut Lip</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Center Window</label>
+                <select
+                  value={project.innerSleeve.dieCutDiameterMm || 100}
+                  onChange={(e) => updateInner({ dieCutDiameterMm: parseInt(e.target.value) })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-zinc-300 font-mono text-xs outline-none"
+                >
+                  <option value={100}>100mm Standard</option>
+                  <option value={85}>85mm Compact</option>
+                </select>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={project.innerSleeve.hasDieCutHole !== false}
+                onChange={(e) => updateInner({ hasDieCutHole: e.target.checked })}
+                className="rounded bg-zinc-950 border-zinc-700 text-rose-500 focus:ring-0"
+              />
+              <span className="text-zinc-300 font-mono text-[11px]">Die-Cut Center Aperture Hole</span>
+            </label>
+
+            {(project.innerSleeve.type === 'anti_static_rice_paper' || project.innerSleeve.type === 'japanese_u_bottom') && (
+              <div>
+                <div className="flex justify-between text-[10px] font-mono text-zinc-500 mb-1">
+                  <span>HDPE TRANSLUCENCY</span>
+                  <span>{Math.round((project.innerSleeve.translucency ?? 0.85) * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="0.95"
+                  step="0.05"
+                  value={project.innerSleeve.translucency ?? 0.85}
+                  onChange={(e) => updateInner({ translucency: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Archival Imprint Text</label>
+              <input
+                type="text"
+                value={project.innerSleeve.archivalPrintText || ''}
+                onChange={(e) => updateInner({ archivalPrintText: e.target.value })}
+                placeholder="ARCHIVAL MASTER SLEEVE • ANTI-STATIC"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 font-mono text-xs outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80">
+              <span className="text-[11px] font-mono text-zinc-400">Paper / Base Tone</span>
+              <input
+                type="color"
+                value={project.innerSleeve.backgroundColor || '#ffffff'}
+                onChange={(e) => updateInner({ backgroundColor: e.target.value })}
+                className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
+              />
+            </div>
+
+            {/* Custom Artwork Uploads for Inner Bag */}
+            <div className="space-y-3 pt-2 border-t border-zinc-800/80">
+              <span className="text-[10px] font-mono text-zinc-500 block uppercase">Printed Inner Sleeve Art</span>
+
+              <div>
+                <label className="text-[10px] font-mono text-zinc-400 block mb-1">Front Artwork</label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white cursor-pointer text-[11px] font-mono transition-colors">
+                    <Upload className="w-3 h-3 text-cyan-400" />
+                    <span>{project.innerSleeve.frontArtwork ? 'Replace Front Art' : 'Upload Front Art'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, (data) => updateInner({ frontArtwork: data }))}
+                      className="hidden"
+                    />
+                  </label>
+                  {project.innerSleeve.frontArtwork && (
+                    <button
+                      onClick={() => updateInner({ frontArtwork: null })}
+                      className="p-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-rose-400"
+                      title="Remove artwork"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-zinc-400 block mb-1">Back Artwork</label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white cursor-pointer text-[11px] font-mono transition-colors">
+                    <Upload className="w-3 h-3 text-cyan-400" />
+                    <span>{project.innerSleeve.backArtwork ? 'Replace Back Art' : 'Upload Back Art'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, (data) => updateInner({ backArtwork: data }))}
+                      className="hidden"
+                    />
+                  </label>
+                  {project.innerSleeve.backArtwork && (
+                    <button
+                      onClick={() => updateInner({ backArtwork: null })}
+                      className="p-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-rose-400"
+                      title="Remove artwork"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

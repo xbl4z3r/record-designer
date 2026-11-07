@@ -11,6 +11,9 @@ export type VinylColorStyle =
   | 'splatter'
   | 'color_in_color'
   | 'half_and_half'
+  | 'tri_color_split'
+  | 'glow_in_the_dark'
+  | 'liquid_glitter'
   | 'picture_disc';
 
 export interface TrackItem {
@@ -45,8 +48,12 @@ export interface VinylConfig {
   primaryColor: string;
   secondaryColor: string;
   splatterColor: string;
+  splatterColor2?: string;
+  splatterDensity?: number; // 10 to 100
   transparency: number; // 0 to 1
   pictureDiscImage: string | null;
+  pictureDiscBackImage?: string | null;
+  glowColor?: string;
   trackBandsCount: number; // Visual concentric audio tracks (typically 3 to 6)
   matrixTextSideA: string;
   matrixTextSideB: string;
@@ -80,12 +87,24 @@ export interface JacketConfig {
   accentColor: string;
 }
 
+export type InnerSleeveType =
+  | 'anti_static_rice_paper'
+  | 'poly_lined_paper'
+  | 'poly_lined_black'
+  | 'japanese_u_bottom'
+  | 'printed_heavyweight'
+  | 'heavyweight_kraft';
+
 export interface InnerSleeveConfig {
-  type: 'printed_heavyweight' | 'poly_lined_paper' | 'plain_black' | 'plain_kraft';
+  type: InnerSleeveType;
   frontArtwork: string | null;
   backArtwork: string | null;
   hasDieCutHole: boolean;
+  dieCutDiameterMm: number; // 85 or 100
   backgroundColor: string;
+  translucency: number; // 0 to 1
+  archivalPrintText: string;
+  cornerStyle: 'square' | 'rounded' | 'clipped';
 }
 
 export interface ObiStripConfig {

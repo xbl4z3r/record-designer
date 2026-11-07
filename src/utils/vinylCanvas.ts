@@ -143,28 +143,68 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
       ctx.stroke();
     }
     ctx.restore();
+  } else if (vinyl.colorStyle === 'tri_color_split') {
+    const colors = [vinyl.primaryColor, vinyl.secondaryColor, vinyl.splatterColor || '#ffffff'];
+    for (let i = 0; i < 3; i++) {
+      const start = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+      const end = start + (2 * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, start, end);
+      ctx.closePath();
+      ctx.fillStyle = colors[i];
+      ctx.fill();
+    }
+  } else if (vinyl.colorStyle === 'glow_in_the_dark') {
+    const glowColor = vinyl.glowColor || '#22c55e';
+    const glowGrad = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius);
+    glowGrad.addColorStop(0, '#f0fdf4');
+    glowGrad.addColorStop(0.5, glowColor);
+    glowGrad.addColorStop(0.9, '#15803d');
+    glowGrad.addColorStop(1, '#052e16');
+    ctx.fillStyle = glowGrad;
+    ctx.fill();
+  } else if (vinyl.colorStyle === 'liquid_glitter') {
+    ctx.fillStyle = vinyl.primaryColor;
+    ctx.fill();
+
+    ctx.save();
+    ctx.clip();
+    for (let i = 0; i < 150; i++) {
+      const angle = (i * 123.7 * Math.PI) / 180;
+      const dist = radius * 0.34 + (radius * 0.6 * ((i * 47) % 100)) / 100;
+      const x = Math.cos(angle) * dist;
+      const y = Math.sin(angle) * dist;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.75)' : 'rgba(253,224,71,0.65)';
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.restore();
   } else if (vinyl.colorStyle === 'splatter') {
     ctx.fillStyle = vinyl.primaryColor;
     ctx.fill();
 
     ctx.save();
     ctx.clip();
-    // Deterministic procedural splatter points
-    ctx.fillStyle = vinyl.splatterColor;
-    for (let i = 0; i < 48; i++) {
+    // Multi-color splatter
+    const density = Math.min(100, Math.max(12, vinyl.splatterDensity || 48));
+    const splatter2 = vinyl.splatterColor2 || vinyl.secondaryColor;
+
+    for (let i = 0; i < density; i++) {
       const angle = (i * 137.5 * Math.PI) / 180;
       const dist = radius * 0.35 + (radius * 0.6 * ((i * 37) % 100)) / 100;
       const x = Math.cos(angle) * dist;
       const y = Math.sin(angle) * dist;
       const dropRadius = 2.5 + ((i * 17) % 7);
+      const color = i % 3 === 0 && vinyl.splatterColor2 ? splatter2 : vinyl.splatterColor;
 
       ctx.beginPath();
       ctx.arc(x, y, dropRadius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
 
       // Splatter tails
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = vinyl.splatterColor;
+      ctx.strokeStyle = color;
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x + Math.cos(angle) * dropRadius * 2.8, y + Math.sin(angle) * dropRadius * 2.8);

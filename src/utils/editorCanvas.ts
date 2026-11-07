@@ -421,22 +421,95 @@ function renderInnerSleeveFlat(
   ctx.save();
   ctx.translate(offset, offset);
 
-  ctx.fillStyle = project.innerSleeve.backgroundColor || '#111215';
-  ctx.fillRect(0, 0, w, h);
+  const inner = project.innerSleeve;
+  const type = inner.type || 'anti_static_rice_paper';
 
-  if (project.innerSleeve.hasDieCutHole) {
+  if (inner.frontArtwork) {
+    const img = getOrLoadImage(inner.frontArtwork);
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, 0, 0, w, h);
+    }
+  } else if (type === 'anti_static_rice_paper') {
+    // Archival frosted rice paper
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle technical grid
+    ctx.strokeStyle = 'rgba(203, 213, 225, 0.4)';
+    ctx.lineWidth = 0.5;
+    for (let x = 20; x < w; x += 15) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 20; y < h; y += 15) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // Top banner strip
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(0, 0, w, 22);
+
+    ctx.font = '600 6.5px "Geist Mono", monospace';
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      inner.archivalPrintText || 'ARCHIVAL MASTER SLEEVE • ANTI-STATIC HDPE • ACID FREE',
+      w / 2,
+      14
+    );
+  } else if (type === 'poly_lined_paper') {
+    ctx.fillStyle = inner.backgroundColor || '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  } else if (type === 'poly_lined_black') {
+    ctx.fillStyle = inner.backgroundColor || '#18181b';
+    ctx.fillRect(0, 0, w, h);
+  } else if (type === 'heavyweight_kraft') {
+    ctx.fillStyle = inner.backgroundColor || '#78350f';
+    ctx.fillRect(0, 0, w, h);
+  } else if (type === 'japanese_u_bottom') {
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = '500 6.5px "Geist Mono", monospace';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('NAGAOKA STYLE ROUND BOTTOM ANTI-STATIC SLEEVE', w / 2, 16);
+  } else {
+    ctx.fillStyle = inner.backgroundColor || '#1e1b4b';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // Die-cut aperture hole
+  if (inner.hasDieCutHole !== false) {
+    const apertureRadius = (inner.dieCutDiameterMm === 85 ? 42.5 : 50);
     ctx.beginPath();
-    ctx.arc(w / 2, h / 2, 50, 0, Math.PI * 2);
-    ctx.fillStyle = '#000000';
+    ctx.arc(w / 2, h / 2, apertureRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#09090b';
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = '#3f3f46';
+    ctx.strokeStyle = '#64748b';
     ctx.stroke();
 
-    ctx.font = '500 7px "Geist Mono", monospace';
-    ctx.fillStyle = '#71717a';
+    ctx.font = '500 6.5px "Geist Mono", monospace';
+    ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'center';
-    ctx.fillText('100mm DIE-CUT APERTURE', w / 2, h / 2);
+    ctx.fillText(`${inner.dieCutDiameterMm || 100}mm DIE-CUT APERTURE`, w / 2, h / 2);
+  }
+
+  // Corner style guides
+  if (inner.cornerStyle === 'rounded') {
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.arc(40, h - 40, 40, Math.PI / 2, Math.PI);
+    ctx.arc(w - 40, h - 40, 40, 0, Math.PI / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   ctx.restore();

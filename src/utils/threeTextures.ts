@@ -118,24 +118,68 @@ export function createVinylFaceTexture(
 
     ctx.save();
     ctx.clip();
-    ctx.fillStyle = splatterColor;
-    for (let i = 0; i < 64; i++) {
+
+    const density = Math.min(100, Math.max(12, vinyl.splatterDensity || 48));
+    const splatter2 = vinyl.splatterColor2 || secondaryColor;
+
+    for (let i = 0; i < density; i++) {
       const angle = (i * 137.5 * Math.PI) / 180;
       const dist = radius * 0.35 + (radius * 0.6 * ((i * 37) % 100)) / 100;
       const x = Math.cos(angle) * dist;
       const y = Math.sin(angle) * dist;
-      const dropRadius = 3 + ((i * 17) % 8);
+      const dropRadius = 2.5 + ((i * 17) % 9);
+      const color = i % 3 === 0 && vinyl.splatterColor2 ? splatter2 : splatterColor;
 
       ctx.beginPath();
       ctx.arc(x, y, dropRadius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
 
-      ctx.lineWidth = 1.8;
-      ctx.strokeStyle = splatterColor;
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = color;
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x + Math.cos(angle) * dropRadius * 2.8, y + Math.sin(angle) * dropRadius * 2.8);
       ctx.stroke();
+    }
+    ctx.restore();
+  } else if (colorStyle === 'tri_color_split') {
+    // 3 equal 120-degree wedge pie slices
+    const colors = [primaryColor, secondaryColor, vinyl.splatterColor || '#ffffff'];
+    for (let i = 0; i < 3; i++) {
+      const start = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+      const end = start + (2 * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, start, end);
+      ctx.closePath();
+      ctx.fillStyle = colors[i];
+      ctx.fill();
+    }
+  } else if (colorStyle === 'glow_in_the_dark') {
+    // Phosphorescent neon glow disc
+    const glowColor = vinyl.glowColor || '#22c55e';
+    const glowGrad = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius);
+    glowGrad.addColorStop(0, '#f0fdf4');
+    glowGrad.addColorStop(0.5, glowColor);
+    glowGrad.addColorStop(0.9, '#15803d');
+    glowGrad.addColorStop(1, '#052e16');
+    ctx.fillStyle = glowGrad;
+    ctx.fill();
+  } else if (colorStyle === 'liquid_glitter') {
+    // Mica flake glitter suspended in vinyl
+    ctx.fillStyle = primaryColor;
+    ctx.fill();
+
+    ctx.save();
+    ctx.clip();
+    for (let i = 0; i < 180; i++) {
+      const angle = (i * 123.7 * Math.PI) / 180;
+      const dist = radius * 0.34 + (radius * 0.6 * ((i * 47) % 100)) / 100;
+      const x = Math.cos(angle) * dist;
+      const y = Math.sin(angle) * dist;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.75)' : 'rgba(253,224,71,0.65)';
+      ctx.fillRect(x, y, 2.5, 2.5);
     }
     ctx.restore();
   } else if (colorStyle === 'picture_disc') {
@@ -144,8 +188,9 @@ export function createVinylFaceTexture(
 
     ctx.save();
     ctx.clip();
-    if (vinyl.pictureDiscImage) {
-      const img = getOrLoadImage(vinyl.pictureDiscImage, () => {
+    const picImage = side === 'A' ? vinyl.pictureDiscImage : (vinyl.pictureDiscBackImage || vinyl.pictureDiscImage);
+    if (picImage) {
+      const img = getOrLoadImage(picImage, () => {
         texture.needsUpdate = true;
         if (onTextureUpdated) onTextureUpdated();
       });
@@ -692,6 +737,121 @@ export function createSlipmatTexture(mat: SlipmatStyle): THREE.CanvasTexture {
     ctx.beginPath();
     ctx.arc(center, center, radius * 0.7, 0, Math.PI * 2);
     ctx.stroke();
+  }
+
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * Creates high-res canvas texture for Anti-Static Archival Inner Sleeve (Front or Back)
+ */
+export function createInnerSleeveTexture(
+  project: ProjectData,
+  side: 'front' | 'back',
+  onTextureUpdated?: () => void
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  if (!ctx) return texture;
+
+  const w = 1024;
+  const h = 1024;
+  const inner = project?.innerSleeve || ({} as any);
+  const type = inner.type || 'anti_static_rice_paper';
+  const customArt = side === 'front' ? inner.frontArtwork : (inner.backArtwork || inner.frontArtwork);
+
+  // Base background fill according to inner sleeve type
+  if (customArt) {
+    const img = getOrLoadImage(customArt, () => {
+      texture.needsUpdate = true;
+      if (onTextureUpdated) onTextureUpdated();
+    });
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, 0, 0, w, h);
+    }
+  } else if (type === 'anti_static_rice_paper') {
+    // Semi-translucent MoFi-style archival rice paper with frosted fibrous look
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle paper grid pattern
+    ctx.strokeStyle = 'rgba(203, 213, 225, 0.45)';
+    ctx.lineWidth = 1;
+    for (let x = 60; x < w; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 60; y < h; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // Top archival banner strip
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(0, 0, w, 60);
+
+    ctx.font = '600 16px "Geist Mono", monospace';
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      inner.archivalPrintText || 'ARCHIVAL MASTER SLEEVE • ANTI-STATIC HDPE • ACID FREE',
+      w / 2,
+      36
+    );
+  } else if (type === 'poly_lined_paper') {
+    ctx.fillStyle = inner.backgroundColor || '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  } else if (type === 'poly_lined_black') {
+    ctx.fillStyle = inner.backgroundColor || '#18181b';
+    ctx.fillRect(0, 0, w, h);
+  } else if (type === 'heavyweight_kraft') {
+    ctx.fillStyle = inner.backgroundColor || '#78350f';
+    ctx.fillRect(0, 0, w, h);
+    // Kraft texture flecks
+    ctx.fillStyle = '#92400e';
+    for (let i = 0; i < 300; i++) {
+      ctx.fillRect((i * 97) % w, (i * 131) % h, 2, 2);
+    }
+  } else if (type === 'japanese_u_bottom') {
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(0, 0, w, h);
+
+    // Japanese technical marking
+    ctx.font = '500 14px "Geist Mono", monospace';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('NAGAOKA STYLE ANTI-STATIC ROUND SLEEVE 0.028mm', w / 2, 40);
+  } else {
+    ctx.fillStyle = inner.backgroundColor || '#1e1b4b';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // Die-cut center aperture hole
+  if (inner.hasDieCutHole !== false) {
+    const holeRadius = inner.dieCutDiameterMm === 85 ? 140 : 170;
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, holeRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, holeRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.4)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
   }
 
   texture.needsUpdate = true;

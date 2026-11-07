@@ -6,6 +6,7 @@ import {
   createJacketFrontTexture,
   createJacketBackTexture,
   createJacketSpineTexture,
+  createInnerSleeveTexture,
   createSlipmatTexture,
 } from './threeTextures';
 
@@ -13,6 +14,7 @@ export interface BuiltStudioMeshes {
   vinylGroup: THREE.Group;
   discMesh: THREE.Mesh;
   jacketGroup: THREE.Group;
+  innerSleeveGroup: THREE.Group;
   turntableGroup: THREE.Group;
   tonearmGroup: THREE.Group;
   updateMaterials: (project: ProjectData, slipmat: SlipmatStyle) => void;
@@ -162,7 +164,71 @@ export function buildStudioSceneMeshes(
   jacketGroup.add(bottomSeam);
   // (Note: Right edge is left completely open as the pocket mouth!)
 
-  // 3. TURNTABLE DECK GROUP
+  // 3. ANTI-STATIC INNER SLEEVE GROUP
+  const innerSleeveGroup = new THREE.Group();
+  innerSleeveGroup.name = 'InnerSleeveGroup';
+
+  const innerSize = 4.88;
+  const innerSpineWidth = 0.08;
+  const innerPolyThickness = 0.008;
+
+  let innerFrontTex = createInnerSleeveTexture(project, 'front', onTextureUpdated);
+  let innerBackTex = createInnerSleeveTexture(project, 'back', onTextureUpdated);
+
+  const innerType = project?.innerSleeve?.type || 'anti_static_rice_paper';
+  const isInnerRicePaper = innerType === 'anti_static_rice_paper' || innerType === 'japanese_u_bottom';
+  const innerOpacity = isInnerRicePaper ? (project?.innerSleeve?.translucency || 0.85) : 1.0;
+
+  const matInnerFront = new THREE.MeshStandardMaterial({
+    map: innerFrontTex,
+    roughness: 0.65,
+    metalness: 0.02,
+    transparent: true,
+    opacity: innerOpacity,
+    alphaTest: 0.2,
+  });
+
+  const matInnerBack = new THREE.MeshStandardMaterial({
+    map: innerBackTex,
+    roughness: 0.65,
+    metalness: 0.02,
+    transparent: true,
+    opacity: innerOpacity,
+    alphaTest: 0.2,
+  });
+
+  const matInnerEdge = new THREE.MeshStandardMaterial({
+    color: '#cbd5e1',
+    roughness: 0.7,
+    transparent: true,
+    opacity: innerOpacity,
+  });
+
+  const innerFrontGeo = new THREE.BoxGeometry(innerSize, innerSize, innerPolyThickness);
+  const innerFrontPanel = new THREE.Mesh(innerFrontGeo, [matInnerEdge, matInnerEdge, matInnerEdge, matInnerEdge, matInnerFront, matInnerFront]);
+  innerFrontPanel.position.set(0, 0, innerSpineWidth / 2 - innerPolyThickness / 2);
+  innerFrontPanel.castShadow = true;
+  innerFrontPanel.receiveShadow = true;
+  innerSleeveGroup.add(innerFrontPanel);
+
+  const innerBackGeo = new THREE.BoxGeometry(innerSize, innerSize, innerPolyThickness);
+  const innerBackPanel = new THREE.Mesh(innerBackGeo, [matInnerEdge, matInnerEdge, matInnerEdge, matInnerEdge, matInnerBack, matInnerBack]);
+  innerBackPanel.position.set(0, 0, -innerSpineWidth / 2 + innerPolyThickness / 2);
+  innerBackPanel.castShadow = true;
+  innerBackPanel.receiveShadow = true;
+  innerSleeveGroup.add(innerBackPanel);
+
+  const innerLeftGeo = new THREE.BoxGeometry(innerPolyThickness, innerSize, innerSpineWidth);
+  const innerLeftSeam = new THREE.Mesh(innerLeftGeo, matInnerEdge);
+  innerLeftSeam.position.set(-innerSize / 2 + innerPolyThickness / 2, 0, 0);
+  innerSleeveGroup.add(innerLeftSeam);
+
+  const innerBottomGeo = new THREE.BoxGeometry(innerSize, innerPolyThickness, innerSpineWidth);
+  const innerBottomSeam = new THREE.Mesh(innerBottomGeo, matInnerEdge);
+  innerBottomSeam.position.set(0, -innerSize / 2 + innerPolyThickness / 2, 0);
+  innerSleeveGroup.add(innerBottomSeam);
+
+  // 4. TURNTABLE DECK GROUP
   const turntableGroup = new THREE.Group();
   turntableGroup.name = 'TurntableGroup';
 
@@ -329,12 +395,29 @@ export function buildStudioSceneMeshes(
     matB.opacity = newIsTransparent ? 0.75 : 1.0;
 
     matRim.color.set(newProject?.vinyl?.primaryColor || '#121214');
+
+    innerFrontTex.dispose();
+    innerBackTex.dispose();
+    innerFrontTex = createInnerSleeveTexture(newProject, 'front', onTextureUpdated);
+    innerBackTex = createInnerSleeveTexture(newProject, 'back', onTextureUpdated);
+
+    matInnerFront.map = innerFrontTex;
+    matInnerFront.needsUpdate = true;
+    matInnerBack.map = innerBackTex;
+    matInnerBack.needsUpdate = true;
+
+    const newInnerType = newProject?.innerSleeve?.type || 'anti_static_rice_paper';
+    const newIsRicePaper = newInnerType === 'anti_static_rice_paper' || newInnerType === 'japanese_u_bottom';
+    const newInnerOpacity = newIsRicePaper ? (newProject?.innerSleeve?.translucency || 0.85) : 1.0;
+    matInnerFront.opacity = newInnerOpacity;
+    matInnerBack.opacity = newInnerOpacity;
   };
 
   return {
     vinylGroup,
     discMesh,
     jacketGroup,
+    innerSleeveGroup,
     turntableGroup,
     tonearmGroup,
     updateMaterials,
