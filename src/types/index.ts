@@ -125,15 +125,29 @@ export type ActiveDiecutComponent =
   | 'inner_sleeve'
   | 'obi_strip';
 
+export type StudioBackground =
+  | 'dark_studio'
+  | 'walnut_credenza'
+  | 'tokyo_neon'
+  | 'bauhaus_concrete'
+  | 'sunset_haze'
+  | 'transparent_grid';
+
+export type StudioDisplayMode = 'sleeve_and_disc' | 'turntable';
+export type SlipmatStyle = 'cork' | 'felt_black' | 'geometric' | 'rubber';
+
 export interface StudioViewState {
   activeView: ActiveWorkspaceView;
   activeComponent: ActiveDiecutComponent;
+  displayMode: StudioDisplayMode;
+  background: StudioBackground;
+  slipmat: SlipmatStyle;
   vinylSide: 'A' | 'B';
   isSpinning: boolean;
   rpm: 33.33 | 45;
+  pitch: number; // -8% to +8%
   extraction: number; // 0 to 1 (0 = in sleeve, 1 = separated)
-  cameraAngle: number; // -45 to 45 deg tilt
-  rotationDeg: number;
+  cameraAngle: { rotX: number; rotY: number; zoom: number };
   showLightingReflection: boolean;
   crackleAudio: boolean;
 }

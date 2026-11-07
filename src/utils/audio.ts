@@ -11,6 +11,34 @@ class VinylAudioEngine {
     this.ctx = new AudioCtxClass();
   }
 
+  public triggerNeedleDrop() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+
+      // Damped low frequency thud + contact scrape
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(95, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.12);
+
+      gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.14);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.15);
+    } catch {
+      // Audio autoplay policy catch
+    }
+  }
+
   public play() {
     try {
       this.init();
