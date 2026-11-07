@@ -1,4 +1,5 @@
 import { VinylConfig, CenterLabelConfig } from '../types';
+import { drawOrganicSplatter } from './threeTextures';
 
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -78,7 +79,11 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
   ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.closePath();
 
-  if (vinyl.colorStyle === 'standard_black') {
+  const primaryColor = vinyl.baseColor || vinyl.primaryColor || '#121214';
+  const secondaryColor = vinyl.secondaryColor || '#27272a';
+  const splatterColor = vinyl.splatterColor1 || vinyl.splatterColor || '#ffffff';
+
+  if (vinyl.colorStyle === 'standard_black' || primaryColor === '#121214') {
     const grad = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius);
     grad.addColorStop(0, '#101114');
     grad.addColorStop(0.7, '#16171c');
@@ -86,35 +91,35 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
     ctx.fillStyle = grad;
     ctx.fill();
   } else if (vinyl.colorStyle === 'solid') {
-    ctx.fillStyle = vinyl.primaryColor;
+    ctx.fillStyle = primaryColor;
     ctx.fill();
   } else if (vinyl.colorStyle === 'transparent') {
-    ctx.globalAlpha = Math.max(0.2, vinyl.transparency * 0.7);
-    ctx.fillStyle = vinyl.primaryColor;
+    ctx.globalAlpha = Math.max(0.2, (vinyl.transparency || 0.8) * 0.7);
+    ctx.fillStyle = primaryColor;
     ctx.fill();
     ctx.globalAlpha = 1.0;
   } else if (vinyl.colorStyle === 'half_and_half') {
     // Left half
     ctx.beginPath();
     ctx.arc(0, 0, radius, -Math.PI / 2, Math.PI / 2);
-    ctx.fillStyle = vinyl.primaryColor;
+    ctx.fillStyle = primaryColor;
     ctx.fill();
 
     // Right half
     ctx.beginPath();
     ctx.arc(0, 0, radius, Math.PI / 2, (3 * Math.PI) / 2);
-    ctx.fillStyle = vinyl.secondaryColor;
+    ctx.fillStyle = secondaryColor;
     ctx.fill();
   } else if (vinyl.colorStyle === 'color_in_color') {
     // Outer color
-    ctx.fillStyle = vinyl.primaryColor;
+    ctx.fillStyle = primaryColor;
     ctx.fill();
 
     // Inner center blob
     const innerRadius = radius * 0.65;
     const centerGrad = ctx.createRadialGradient(0, 0, innerRadius * 0.3, 0, 0, innerRadius);
-    centerGrad.addColorStop(0, vinyl.secondaryColor);
-    centerGrad.addColorStop(0.85, vinyl.secondaryColor);
+    centerGrad.addColorStop(0, secondaryColor);
+    centerGrad.addColorStop(0.85, secondaryColor);
     centerGrad.addColorStop(1, 'transparent');
     ctx.fillStyle = centerGrad;
     ctx.beginPath();
@@ -122,13 +127,13 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
     ctx.fill();
   } else if (vinyl.colorStyle === 'marble') {
     // Base color
-    ctx.fillStyle = vinyl.primaryColor;
+    ctx.fillStyle = primaryColor;
     ctx.fill();
 
     // Swirl pattern
     ctx.save();
     ctx.clip();
-    ctx.strokeStyle = vinyl.secondaryColor;
+    ctx.strokeStyle = secondaryColor;
     ctx.lineWidth = radius * 0.08;
     ctx.globalAlpha = 0.55;
 
@@ -144,7 +149,7 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
     }
     ctx.restore();
   } else if (vinyl.colorStyle === 'tri_color_split') {
-    const colors = [vinyl.primaryColor, vinyl.secondaryColor, vinyl.splatterColor || '#ffffff'];
+    const colors = [primaryColor, secondaryColor, splatterColor];
     for (let i = 0; i < 3; i++) {
       const start = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
       const end = start + (2 * Math.PI) / 3;
@@ -165,7 +170,7 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
     ctx.fillStyle = glowGrad;
     ctx.fill();
   } else if (vinyl.colorStyle === 'liquid_glitter') {
-    ctx.fillStyle = vinyl.primaryColor;
+    ctx.fillStyle = primaryColor;
     ctx.fill();
 
     ctx.save();
@@ -179,38 +184,10 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
       ctx.fillRect(x, y, 2, 2);
     }
     ctx.restore();
-  } else if (vinyl.colorStyle === 'splatter') {
-    ctx.fillStyle = vinyl.primaryColor;
+  } else if (vinyl.colorStyle === 'splatter' || vinyl.finishEffect === 'splatter') {
+    ctx.fillStyle = primaryColor;
     ctx.fill();
-
-    ctx.save();
-    ctx.clip();
-    // Multi-color splatter
-    const density = Math.min(100, Math.max(12, vinyl.splatterDensity || 48));
-    const splatter2 = vinyl.splatterColor2 || vinyl.secondaryColor;
-
-    for (let i = 0; i < density; i++) {
-      const angle = (i * 137.5 * Math.PI) / 180;
-      const dist = radius * 0.35 + (radius * 0.6 * ((i * 37) % 100)) / 100;
-      const x = Math.cos(angle) * dist;
-      const y = Math.sin(angle) * dist;
-      const dropRadius = 2.5 + ((i * 17) % 7);
-      const color = i % 3 === 0 && vinyl.splatterColor2 ? splatter2 : vinyl.splatterColor;
-
-      ctx.beginPath();
-      ctx.arc(x, y, dropRadius, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      // Splatter tails
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + Math.cos(angle) * dropRadius * 2.8, y + Math.sin(angle) * dropRadius * 2.8);
-      ctx.stroke();
-    }
-    ctx.restore();
+    drawOrganicSplatter(ctx, radius, vinyl);
   } else if (vinyl.colorStyle === 'picture_disc') {
     // Default disc background
     ctx.fillStyle = '#0f172a';
@@ -224,18 +201,18 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
         ctx.drawImage(img, -radius, -radius, radius * 2, radius * 2);
       } else {
         const picGrad = ctx.createLinearGradient(-radius, -radius, radius, radius);
-        picGrad.addColorStop(0, vinyl.primaryColor);
-        picGrad.addColorStop(0.5, vinyl.secondaryColor);
-        picGrad.addColorStop(1, vinyl.splatterColor);
+        picGrad.addColorStop(0, primaryColor);
+        picGrad.addColorStop(0.5, secondaryColor);
+        picGrad.addColorStop(1, splatterColor);
         ctx.fillStyle = picGrad;
         ctx.fill();
       }
     } else {
       // Default kinetic design if no image uploaded
       const picGrad = ctx.createLinearGradient(-radius, -radius, radius, radius);
-      picGrad.addColorStop(0, vinyl.primaryColor);
-      picGrad.addColorStop(0.5, vinyl.secondaryColor);
-      picGrad.addColorStop(1, vinyl.splatterColor);
+      picGrad.addColorStop(0, primaryColor);
+      picGrad.addColorStop(0.5, secondaryColor);
+      picGrad.addColorStop(1, splatterColor);
       ctx.fillStyle = picGrad;
       ctx.fill();
 

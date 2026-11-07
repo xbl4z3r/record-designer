@@ -10,6 +10,15 @@ export const PRESET_PROJECTS: Record<string, ProjectData> = {
       rpm: '33rpm',
       weight: '180g',
       holeType: 'standard_small',
+      baseMaterial: 'opaque',
+      baseColor: '#121214',
+      finishEffect: 'none',
+      splatterToneCount: 1,
+      splatterColor1: '#ffffff',
+      splatterColor2: '#a1a1aa',
+      splatterColor3: '#e11d48',
+      splatterDensity: 40,
+      splatterSpread: 1.0,
       colorStyle: 'standard_black',
       primaryColor: '#121214',
       secondaryColor: '#27272a',
@@ -116,6 +125,15 @@ export const PRESET_PROJECTS: Record<string, ProjectData> = {
       rpm: '33rpm',
       weight: '140g',
       holeType: 'standard_small',
+      baseMaterial: 'translucent',
+      baseColor: '#0284c7',
+      finishEffect: 'color_in_color',
+      splatterToneCount: 2,
+      splatterColor1: '#38bdf8',
+      splatterColor2: '#f43f5e',
+      splatterColor3: '#ffffff',
+      splatterDensity: 48,
+      splatterSpread: 1.0,
       colorStyle: 'color_in_color',
       primaryColor: '#0284c7', // Cyan blue outer
       secondaryColor: '#f43f5e', // Rose magenta center
@@ -222,6 +240,15 @@ export const PRESET_PROJECTS: Record<string, ProjectData> = {
       rpm: '45rpm',
       weight: '140g',
       holeType: 'standard_small',
+      baseMaterial: 'picture_disc',
+      baseColor: '#eab308',
+      finishEffect: 'none',
+      splatterToneCount: 1,
+      splatterColor1: '#22c55e',
+      splatterColor2: '#eab308',
+      splatterColor3: '#18181b',
+      splatterDensity: 36,
+      splatterSpread: 1.0,
       colorStyle: 'picture_disc',
       primaryColor: '#eab308',
       secondaryColor: '#18181b',
@@ -324,6 +351,15 @@ export const PRESET_PROJECTS: Record<string, ProjectData> = {
       rpm: '33rpm',
       weight: '140g',
       holeType: 'standard_small',
+      baseMaterial: 'opaque',
+      baseColor: '#f1f5f9', // Ghost white base
+      finishEffect: 'splatter',
+      splatterToneCount: 2,
+      splatterColor1: '#ec4899', // Hot pink splatter
+      splatterColor2: '#6366f1', // Indigo nebula
+      splatterColor3: '#38bdf8', // Sky cyan
+      splatterDensity: 52,
+      splatterSpread: 1.25,
       colorStyle: 'splatter',
       primaryColor: '#f1f5f9', // Ghost white base
       secondaryColor: '#6366f1', // Indigo nebula
@@ -429,6 +465,15 @@ export const PRESET_PROJECTS: Record<string, ProjectData> = {
       rpm: '45rpm',
       weight: '140g',
       holeType: 'dinked_large', // Big jukebox center hole!
+      baseMaterial: 'opaque',
+      baseColor: '#b91c1c', // Ruby red soul 7"
+      finishEffect: 'none',
+      splatterToneCount: 1,
+      splatterColor1: '#f59e0b',
+      splatterColor2: '#991b1b',
+      splatterColor3: '#ffffff',
+      splatterDensity: 24,
+      splatterSpread: 1.0,
       colorStyle: 'solid',
       primaryColor: '#b91c1c', // Ruby red soul 7"
       secondaryColor: '#991b1b',

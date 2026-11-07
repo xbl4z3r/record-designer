@@ -20,6 +20,97 @@ function getOrLoadImage(src: string, onLoaded?: () => void): HTMLImageElement {
 }
 
 /**
+ * Organic Procedural Splatter Generator for Real Vinyl Pressing Effect
+ */
+export function drawOrganicSplatter(
+  ctx: CanvasRenderingContext2D,
+  radius: number,
+  vinyl: any
+) {
+  const toneCount = vinyl.splatterToneCount || 1;
+  const c1 = vinyl.splatterColor1 || vinyl.splatterColor || '#ec4899';
+  const c2 = vinyl.splatterColor2 || vinyl.secondaryColor || '#6366f1';
+  const c3 = vinyl.splatterColor3 || '#38bdf8';
+  const colors = toneCount === 3 ? [c1, c2, c3] : toneCount === 2 ? [c1, c2] : [c1];
+
+  const density = Math.min(100, Math.max(10, vinyl.splatterDensity || 42));
+  const spread = Math.min(2.5, Math.max(0.4, vinyl.splatterSpread || 1.1));
+
+  ctx.save();
+  ctx.clip(); // Constrain within disc bounds
+
+  const burstCount = Math.floor(density * 0.45) + 6;
+
+  for (let b = 0; b < burstCount; b++) {
+    const color = colors[b % colors.length];
+    const angle = b * 2.39996 + 0.35;
+    const distance = radius * 0.36 + ((b * 37) % 100) * (radius * 0.54 / 100);
+
+    const bx = Math.cos(angle) * distance;
+    const by = Math.sin(angle) * distance;
+    const burstSize = (4.5 + ((b * 19) % 11)) * spread;
+
+    // 1. Central squashed dendritic core blob
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    const corePoints = 8;
+    for (let p = 0; p <= corePoints; p++) {
+      const pAngle = (p / corePoints) * Math.PI * 2;
+      const rVar = burstSize * (0.65 + 0.35 * Math.sin(p * 3.7 + b * 1.3));
+      const px = bx + Math.cos(pAngle) * rVar;
+      const py = by + Math.sin(pAngle) * rVar;
+      if (p === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Dendritic branching tendrils shooting radially outwards
+    const tendrilCount = 4 + (b % 4);
+    for (let t = 0; t < tendrilCount; t++) {
+      const baseOutAngle = Math.atan2(by, bx);
+      const tendrilAngle = baseOutAngle + ((t - tendrilCount / 2) * 0.38) + ((b * 13) % 20 - 10) * 0.02;
+      const tendrilLen = burstSize * (2.2 + ((t * 17 + b * 7) % 15) * 0.28) * spread;
+
+      const tx = bx + Math.cos(tendrilAngle) * tendrilLen;
+      const ty = by + Math.sin(tendrilAngle) * tendrilLen;
+      const midX = bx + Math.cos(tendrilAngle + 0.12) * (tendrilLen * 0.5);
+      const midY = by + Math.sin(tendrilAngle + 0.12) * (tendrilLen * 0.5);
+
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.quadraticCurveTo(midX, midY, tx, ty);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1.2, burstSize * 0.2);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Satellite droplet at the tendril tip
+      const tipDist = tendrilLen + 5 + (t * 4);
+      const tipX = bx + Math.cos(tendrilAngle) * tipDist;
+      const tipY = by + Math.sin(tendrilAngle) * tipDist;
+      ctx.beginPath();
+      ctx.arc(tipX, tipY, 1.2 + (t % 3) * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. Ambient micro-flecks sprayed along the groove direction
+    const fleckCount = 7 + (b % 6);
+    for (let f = 0; f < fleckCount; f++) {
+      const fAngle = angle + ((f * 0.9) - 2.8);
+      const fDist = distance + (((f * 29) % 44) - 22) * spread;
+      const fx = Math.cos(fAngle) * fDist;
+      const fy = Math.sin(fAngle) * fDist;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 0.75 + ((f * 7) % 3) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
  * Generates high-res canvas texture for vinyl face (Side A or Side B)
  */
 export function createVinylFaceTexture(
@@ -42,7 +133,6 @@ export function createVinylFaceTexture(
   const radius = 500;
   const vinyl = project?.vinyl || ({} as any);
 
-  // 1. Vinyl Base Color & Effect
   ctx.save();
   ctx.translate(center, center);
 
@@ -50,102 +140,32 @@ export function createVinylFaceTexture(
   ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.closePath();
 
-  const colorStyle = vinyl.colorStyle || 'standard_black';
-  const primaryColor = vinyl.primaryColor || '#121214';
-  const secondaryColor = vinyl.secondaryColor || '#27272a';
-  const splatterColor = vinyl.splatterColor || '#ffffff';
+  // 1. BASE MATERIAL & FOUNDATION COLOR
+  const baseColor: string = vinyl.baseColor || vinyl.primaryColor || '#121214';
+  const finish: string = (vinyl.finishEffect || vinyl.colorStyle || 'none') as string;
+  const secondaryColor: string = vinyl.secondaryColor || '#27272a';
+  const tertiaryColor: string = vinyl.tertiaryColor || vinyl.splatterColor1 || '#38bdf8';
 
-  if (colorStyle === 'standard_black') {
+  if (baseColor.toLowerCase() === '#121214' || vinyl.colorStyle === 'standard_black') {
     const grad = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius);
     grad.addColorStop(0, '#101114');
     grad.addColorStop(0.7, '#16171c');
     grad.addColorStop(1, '#0c0d0f');
     ctx.fillStyle = grad;
     ctx.fill();
-  } else if (colorStyle === 'solid') {
-    ctx.fillStyle = primaryColor;
+  } else {
+    ctx.fillStyle = baseColor;
     ctx.fill();
-  } else if (colorStyle === 'transparent') {
-    ctx.fillStyle = primaryColor;
-    ctx.fill();
-  } else if (colorStyle === 'half_and_half') {
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, -Math.PI / 2, Math.PI / 2);
-    ctx.fillStyle = primaryColor;
-    ctx.fill();
+  }
 
+  // 2. FINISH / PATTERN EFFECT LAYER (Applied on top of base)
+  if (finish === 'two_tone' || vinyl.colorStyle === 'half_and_half') {
     ctx.beginPath();
     ctx.arc(0, 0, radius, Math.PI / 2, (3 * Math.PI) / 2);
     ctx.fillStyle = secondaryColor;
     ctx.fill();
-  } else if (colorStyle === 'color_in_color') {
-    ctx.fillStyle = primaryColor;
-    ctx.fill();
-
-    const innerRadius = radius * 0.65;
-    const centerGrad = ctx.createRadialGradient(0, 0, innerRadius * 0.3, 0, 0, innerRadius);
-    centerGrad.addColorStop(0, secondaryColor);
-    centerGrad.addColorStop(0.85, secondaryColor);
-    centerGrad.addColorStop(1, 'transparent');
-    ctx.fillStyle = centerGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (colorStyle === 'marble') {
-    ctx.fillStyle = primaryColor;
-    ctx.fill();
-
-    ctx.save();
-    ctx.clip();
-    ctx.strokeStyle = secondaryColor;
-    ctx.lineWidth = radius * 0.08;
-    ctx.globalAlpha = 0.55;
-
-    for (let i = 0; i < 9; i++) {
-      ctx.beginPath();
-      const a = (i * Math.PI) / 4.5;
-      const x1 = Math.cos(a) * radius * 0.3;
-      const y1 = Math.sin(a) * radius * 0.3;
-      const x2 = Math.cos(a + 1.2) * radius * 0.9;
-      const y2 = Math.sin(a + 1.2) * radius * 0.9;
-      ctx.bezierCurveTo(x1, y1, -y1, x1, x2, y2);
-      ctx.stroke();
-    }
-    ctx.restore();
-  } else if (colorStyle === 'splatter') {
-    ctx.fillStyle = primaryColor;
-    ctx.fill();
-
-    ctx.save();
-    ctx.clip();
-
-    const density = Math.min(100, Math.max(12, vinyl.splatterDensity || 48));
-    const splatter2 = vinyl.splatterColor2 || secondaryColor;
-
-    for (let i = 0; i < density; i++) {
-      const angle = (i * 137.5 * Math.PI) / 180;
-      const dist = radius * 0.35 + (radius * 0.6 * ((i * 37) % 100)) / 100;
-      const x = Math.cos(angle) * dist;
-      const y = Math.sin(angle) * dist;
-      const dropRadius = 2.5 + ((i * 17) % 9);
-      const color = i % 3 === 0 && vinyl.splatterColor2 ? splatter2 : splatterColor;
-
-      ctx.beginPath();
-      ctx.arc(x, y, dropRadius, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      ctx.lineWidth = 1.6;
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + Math.cos(angle) * dropRadius * 2.8, y + Math.sin(angle) * dropRadius * 2.8);
-      ctx.stroke();
-    }
-    ctx.restore();
-  } else if (colorStyle === 'tri_color_split') {
-    // 3 equal 120-degree wedge pie slices
-    const colors = [primaryColor, secondaryColor, vinyl.splatterColor || '#ffffff'];
+  } else if (finish === 'three_tone' || vinyl.colorStyle === 'tri_color_split') {
+    const colors = [baseColor, secondaryColor, tertiaryColor];
     for (let i = 0; i < 3; i++) {
       const start = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
       const end = start + (2 * Math.PI) / 3;
@@ -156,8 +176,38 @@ export function createVinylFaceTexture(
       ctx.fillStyle = colors[i];
       ctx.fill();
     }
-  } else if (colorStyle === 'glow_in_the_dark') {
-    // Phosphorescent neon glow disc
+  } else if (finish === 'color_in_color' || vinyl.colorStyle === 'color_in_color') {
+    const innerRadius = radius * 0.65;
+    const centerGrad = ctx.createRadialGradient(0, 0, innerRadius * 0.3, 0, 0, innerRadius);
+    centerGrad.addColorStop(0, secondaryColor);
+    centerGrad.addColorStop(0.85, secondaryColor);
+    centerGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = centerGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (finish === 'galaxy_swirl' || finish === 'marble' || vinyl.colorStyle === 'marble') {
+    ctx.save();
+    ctx.clip();
+    ctx.strokeStyle = secondaryColor;
+    ctx.lineWidth = radius * 0.08;
+    ctx.globalAlpha = 0.55;
+
+    for (let i = 0; i < 11; i++) {
+      ctx.beginPath();
+      const a = (i * Math.PI) / 5.5;
+      const x1 = Math.cos(a) * radius * 0.3;
+      const y1 = Math.sin(a) * radius * 0.3;
+      const x2 = Math.cos(a + 1.25) * radius * 0.9;
+      const y2 = Math.sin(a + 1.25) * radius * 0.9;
+      ctx.bezierCurveTo(x1, y1, -y1, x1, x2, y2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (finish === 'splatter' || vinyl.colorStyle === 'splatter') {
+    // Call organic dynamic multi-tone splatter
+    drawOrganicSplatter(ctx, radius, vinyl);
+  } else if (finish === 'glow_in_the_dark' || vinyl.colorStyle === 'glow_in_the_dark') {
     const glowColor = vinyl.glowColor || '#22c55e';
     const glowGrad = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius);
     glowGrad.addColorStop(0, '#f0fdf4');
@@ -166,23 +216,19 @@ export function createVinylFaceTexture(
     glowGrad.addColorStop(1, '#052e16');
     ctx.fillStyle = glowGrad;
     ctx.fill();
-  } else if (colorStyle === 'liquid_glitter') {
-    // Mica flake glitter suspended in vinyl
-    ctx.fillStyle = primaryColor;
-    ctx.fill();
-
+  } else if (finish === 'liquid_glitter' || vinyl.colorStyle === 'liquid_glitter') {
     ctx.save();
     ctx.clip();
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < 200; i++) {
       const angle = (i * 123.7 * Math.PI) / 180;
       const dist = radius * 0.34 + (radius * 0.6 * ((i * 47) % 100)) / 100;
       const x = Math.cos(angle) * dist;
       const y = Math.sin(angle) * dist;
-      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.75)' : 'rgba(253,224,71,0.65)';
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(253,224,71,0.75)';
       ctx.fillRect(x, y, 2.5, 2.5);
     }
     ctx.restore();
-  } else if (colorStyle === 'picture_disc') {
+  } else if (finish === 'picture_disc' || vinyl.colorStyle === 'picture_disc') {
     ctx.fillStyle = '#0f172a';
     ctx.fill();
 
@@ -199,9 +245,9 @@ export function createVinylFaceTexture(
       }
     } else {
       const picGrad = ctx.createLinearGradient(-radius, -radius, radius, radius);
-      picGrad.addColorStop(0, primaryColor);
+      picGrad.addColorStop(0, baseColor);
       picGrad.addColorStop(0.5, secondaryColor);
-      picGrad.addColorStop(1, splatterColor);
+      picGrad.addColorStop(1, tertiaryColor);
       ctx.fillStyle = picGrad;
       ctx.fill();
 

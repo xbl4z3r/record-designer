@@ -15,6 +15,7 @@ import {
   Disc,
   Compass,
   Palette,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface StudioViewerProps {
@@ -66,11 +67,11 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const meshesRef = useRef<BuiltStudioMeshes | null>(null);
   const rimLightRef = useRef<THREE.DirectionalLight | null>(null);
 
-  // Camera Orbit state
+  // Camera Orbit state (Default zoomed out comfortably so whole package fits)
   const cameraOrbit = useRef<{ theta: number; phi: number; radius: number; target: THREE.Vector3 }>({
     theta: -0.32,
     phi: 1.18,
-    radius: 9.6,
+    radius: 13.5,
     target: new THREE.Vector3(0, 0, 0),
   });
   const isDraggingRef = useRef(false);
@@ -208,27 +209,49 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         meshes.discMesh.rotation.y += radPerSec * delta;
       }
 
-      // 2. Mode layouts
+      // 2. Stage Mode layouts
       if (currentMode === 'sleeve_and_disc') {
-        // Sleeve Mode: Turntable is hidden
+        // Full Package: Outer Jacket + Inner Sleeve + Vinyl Disc
         meshes.turntableGroup.visible = false;
         meshes.jacketGroup.visible = true;
         meshes.innerSleeveGroup.visible = true;
 
-        // Position jacket on the left
-        meshes.jacketGroup.position.set(-1.2, 0, 0);
+        meshes.jacketGroup.position.set(-1.6, 0, 0);
         meshes.jacketGroup.rotation.set(0, 0, 0);
 
-        // Anti-static inner sleeve emerges partially as extraction begins
-        const innerX = -1.2 + currentExtraction * 1.45;
+        // Anti-static inner sleeve emerges halfway from jacket
+        const innerX = -1.6 + currentExtraction * 1.8;
         meshes.innerSleeveGroup.position.set(innerX, 0, 0);
         meshes.innerSleeveGroup.rotation.set(0, 0, 0);
 
-        // Disc sits INSIDE the inner sleeve and slides all the way out through the mouth
-        const discX = -1.2 + currentExtraction * 3.2;
+        // Disc sits INSIDE the inner sleeve and slides out of inner sleeve mouth
+        const discX = -1.6 + currentExtraction * 3.6;
         meshes.vinylGroup.position.set(discX, 0, 0);
 
-        // Disc is upright in sleeve mode
+        meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
+        meshes.vinylGroup.rotation.z = 0;
+      } else if (currentMode === 'inner_and_disc') {
+        // Anti-Static Inner Sleeve Focus: Jacket hidden, inner sleeve centered
+        meshes.turntableGroup.visible = false;
+        meshes.jacketGroup.visible = false;
+        meshes.innerSleeveGroup.visible = true;
+
+        meshes.innerSleeveGroup.position.set(-0.9, 0, 0);
+        meshes.innerSleeveGroup.rotation.set(0, 0, 0);
+
+        // Disc slides in and out of the anti-static inner sleeve
+        const discX = -0.9 + currentExtraction * 3.0;
+        meshes.vinylGroup.position.set(discX, 0, 0);
+
+        meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
+        meshes.vinylGroup.rotation.z = 0;
+      } else if (currentMode === 'vinyl_solo') {
+        // Vinyl Disc Solo 3D inspection
+        meshes.turntableGroup.visible = false;
+        meshes.jacketGroup.visible = false;
+        meshes.innerSleeveGroup.visible = false;
+
+        meshes.vinylGroup.position.set(0, 0, 0);
         meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
         meshes.vinylGroup.rotation.z = 0;
       } else {
@@ -288,10 +311,16 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   // 3. Camera adjustments on mode switch
   useEffect(() => {
     if (displayMode === 'sleeve_and_disc') {
-      cameraOrbit.current.radius = 9.6;
+      cameraOrbit.current.radius = 13.5;
+      cameraOrbit.current.target.set(0, 0, 0);
+    } else if (displayMode === 'inner_and_disc') {
+      cameraOrbit.current.radius = 12.0;
+      cameraOrbit.current.target.set(0, 0, 0);
+    } else if (displayMode === 'vinyl_solo') {
+      cameraOrbit.current.radius = 9.8;
       cameraOrbit.current.target.set(0, 0, 0);
     } else {
-      cameraOrbit.current.radius = 11.2;
+      cameraOrbit.current.radius = 14.5;
       cameraOrbit.current.target.set(0, 0, 0);
     }
     updateCameraPosition();
@@ -337,30 +366,39 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     cameraOrbit.current.radius = Math.max(
-      4.5,
-      Math.min(18.0, cameraOrbit.current.radius + e.deltaY * 0.008)
+      5.5,
+      Math.min(26.0, cameraOrbit.current.radius + e.deltaY * 0.008)
     );
     updateCameraPosition();
   };
 
   // Camera Presets
   const setCameraPreset = (preset: 'hero' | 'front' | 'top' | 'side') => {
+    const baseRadius =
+      displayMode === 'turntable'
+        ? 14.5
+        : displayMode === 'vinyl_solo'
+        ? 9.8
+        : displayMode === 'inner_and_disc'
+        ? 12.0
+        : 13.5;
+
     if (preset === 'hero') {
       cameraOrbit.current.theta = -0.32;
       cameraOrbit.current.phi = 1.18;
-      cameraOrbit.current.radius = displayMode === 'turntable' ? 11.2 : 9.6;
+      cameraOrbit.current.radius = baseRadius;
     } else if (preset === 'front') {
       cameraOrbit.current.theta = 0;
       cameraOrbit.current.phi = Math.PI / 2 - 0.02;
-      cameraOrbit.current.radius = 8.8;
+      cameraOrbit.current.radius = baseRadius * 0.92;
     } else if (preset === 'top') {
       cameraOrbit.current.theta = 0;
       cameraOrbit.current.phi = 0.22;
-      cameraOrbit.current.radius = 9.8;
+      cameraOrbit.current.radius = baseRadius * 1.05;
     } else if (preset === 'side') {
       cameraOrbit.current.theta = -Math.PI / 2;
       cameraOrbit.current.phi = 1.25;
-      cameraOrbit.current.radius = 9.2;
+      cameraOrbit.current.radius = baseRadius * 0.95;
     }
     updateCameraPosition();
   };
@@ -437,7 +475,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
       {/* Top Quick Bar: Mode Switcher & Camera Angles */}
       <div className="absolute top-4 left-4 z-40 flex flex-wrap items-center gap-2 text-xs font-mono">
-        {/* Display Mode: Sleeve vs Turntable */}
+        {/* Stage Mode Switcher */}
         <div className="flex items-center bg-zinc-900/90 backdrop-blur border border-zinc-800 rounded-lg p-0.5 shadow-lg">
           <button
             onClick={() => setDisplayMode('sleeve_and_disc')}
@@ -448,7 +486,29 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-rose-500" />
-            <span>3D SLEEVE & DISC</span>
+            <span>FULL PACKAGE</span>
+          </button>
+          <button
+            onClick={() => setDisplayMode('inner_and_disc')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+              displayMode === 'inner_and_disc'
+                ? 'bg-zinc-800 text-white font-semibold shadow'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>INNER SLEEVE</span>
+          </button>
+          <button
+            onClick={() => setDisplayMode('vinyl_solo')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+              displayMode === 'vinyl_solo'
+                ? 'bg-zinc-800 text-white font-semibold shadow'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Disc className="w-3.5 h-3.5 text-amber-400" />
+            <span>VINYL SOLO</span>
           </button>
           <button
             onClick={() => setDisplayMode('turntable')}
@@ -459,7 +519,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             }`}
           >
             <Disc className="w-3.5 h-3.5 text-cyan-400" />
-            <span>3D TURNTABLE</span>
+            <span>TURNTABLE</span>
           </button>
         </div>
 
@@ -601,7 +661,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         </button>
 
         {/* Mode-specific Controls */}
-        {displayMode === 'sleeve_and_disc' ? (
+        {(displayMode === 'sleeve_and_disc' || displayMode === 'inner_and_disc') ? (
           <>
             <div className="h-4 w-px bg-zinc-800" />
             <div className="flex items-center gap-2">
@@ -614,11 +674,11 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 value={extraction}
                 onChange={(e) => setExtraction(parseFloat(e.target.value))}
                 className="w-16 md:w-20 h-1 bg-zinc-800 rounded-lg cursor-pointer"
-                title="Disc Sleeve Extraction"
+                title="Disc Extraction Slider"
               />
             </div>
           </>
-        ) : (
+        ) : displayMode === 'turntable' ? (
           <>
             <div className="h-4 w-px bg-zinc-800" />
             <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
@@ -653,7 +713,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
               ))}
             </div>
           </>
-        )}
+        ) : null}
 
         <div className="h-4 w-px bg-zinc-800" />
 

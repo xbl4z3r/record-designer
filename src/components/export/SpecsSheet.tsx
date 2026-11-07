@@ -107,16 +107,16 @@ export const SpecsSheet: React.FC<SpecsSheetProps> = ({ project }) => {
           <div className="p-4 rounded-md bg-zinc-950 border border-zinc-800/80 space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between">
               <span className="text-zinc-500">COLOR FORMULATION STYLE:</span>
-              <span className="text-zinc-200 font-semibold uppercase">{project.vinyl.colorStyle.replace(/_/g, ' ')}</span>
+              <span className="text-zinc-200 font-semibold uppercase">{(project.vinyl.finishEffect || project.vinyl.colorStyle || 'standard').replace(/_/g, ' ')}</span>
             </div>
 
             <div className="flex items-center gap-4 pt-2">
               <div className="flex items-center gap-2">
                 <span
                   className="w-4 h-4 rounded-full border border-zinc-700"
-                  style={{ backgroundColor: project.vinyl.primaryColor }}
+                  style={{ backgroundColor: project.vinyl.baseColor || project.vinyl.primaryColor || '#121214' }}
                 />
-                <span className="text-zinc-400">Primary: {project.vinyl.primaryColor}</span>
+                <span className="text-zinc-400">Base: {project.vinyl.baseColor || project.vinyl.primaryColor || '#121214'}</span>
               </div>
 
               {project.vinyl.colorStyle !== 'standard_black' && project.vinyl.colorStyle !== 'solid' && (

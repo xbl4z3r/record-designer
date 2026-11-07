@@ -3,6 +3,20 @@ export type VinylRpm = '33rpm' | '45rpm';
 export type VinylWeight = '140g' | '180g';
 export type CenterHoleType = 'standard_small' | 'dinked_large';
 
+export type VinylBaseMaterial = 'opaque' | 'translucent' | 'smoke' | 'picture_disc';
+
+export type VinylFinishEffect =
+  | 'none'
+  | 'splatter'
+  | 'two_tone'
+  | 'three_tone'
+  | 'color_in_color'
+  | 'galaxy_swirl'
+  | 'glow_in_the_dark'
+  | 'liquid_glitter';
+
+export type SplatterToneCount = 1 | 2 | 3;
+
 export type VinylColorStyle =
   | 'standard_black'
   | 'solid'
@@ -44,21 +58,39 @@ export interface VinylConfig {
   rpm: VinylRpm;
   weight: VinylWeight;
   holeType: CenterHoleType;
-  colorStyle: VinylColorStyle;
-  primaryColor: string;
-  secondaryColor: string;
-  splatterColor: string;
-  splatterColor2?: string;
-  splatterDensity?: number; // 10 to 100
+
+  // Decoupled Foundation & Finish
+  baseMaterial: VinylBaseMaterial;
+  baseColor: string;
   transparency: number; // 0 to 1
+
+  finishEffect: VinylFinishEffect;
+  secondaryColor: string;
+  tertiaryColor?: string;
+
+  // Multi-tone Splatter System (1-tone, 2-tone, 3-tone)
+  splatterToneCount: SplatterToneCount;
+  splatterColor1: string;
+  splatterColor2: string;
+  splatterColor3: string;
+  splatterDensity: number; // 10 to 100
+  splatterSpread: number; // 0.5 to 2.0
+
+  // Specialty options
   pictureDiscImage: string | null;
   pictureDiscBackImage?: string | null;
   glowColor?: string;
+
   trackBandsCount: number; // Visual concentric audio tracks (typically 3 to 6)
   matrixTextSideA: string;
   matrixTextSideB: string;
   sideALabel: CenterLabelConfig;
   sideBLabel: CenterLabelConfig;
+
+  // Compatibility aliases
+  colorStyle?: VinylColorStyle;
+  primaryColor?: string;
+  splatterColor?: string;
 }
 
 export type JacketType = 'single_pocket' | 'gatefold' | 'disco_bag';
@@ -152,7 +184,11 @@ export type StudioBackground =
   | 'sunset_haze'
   | 'transparent_grid';
 
-export type StudioDisplayMode = 'sleeve_and_disc' | 'turntable';
+export type StudioDisplayMode =
+  | 'sleeve_and_disc'
+  | 'inner_and_disc'
+  | 'vinyl_solo'
+  | 'turntable';
 export type SlipmatStyle = 'cork' | 'felt_black' | 'geometric' | 'rubber';
 
 export interface StudioViewState {

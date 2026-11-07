@@ -30,7 +30,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
     URL.revokeObjectURL(url);
   };
 
-  const handleExportSvg = (component: 'jacket_front' | 'jacket_back' | 'jacket_spread' | 'label_a' | 'label_b' | 'obi_strip') => {
+  const handleExportSvg = (component: 'jacket_front' | 'jacket_back' | 'jacket_spread' | 'label_a' | 'label_b' | 'inner_sleeve' | 'obi_strip') => {
     setDownloading(component);
     const svg = generatePrintReadySvg(project, component);
     const cleanAlbum = (project.jacket.albumTitle || 'record').toLowerCase().replace(/\s+/g, '-');
@@ -114,6 +114,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
                 <div>
                   <div className="text-xs font-semibold text-zinc-200 group-hover:text-white">Center Label Side B</div>
                   <div className="text-[10px] font-mono text-zinc-500">100mm circular die-cut + 7.2mm spindle hole</div>
+                </div>
+                <Download className="w-4 h-4 text-zinc-500 group-hover:text-rose-400 transition-colors" />
+              </button>
+
+              <button
+                onClick={() => handleExportSvg('inner_sleeve')}
+                className="flex items-center justify-between p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-left transition-colors group"
+              >
+                <div>
+                  <div className="text-xs font-semibold text-zinc-200 group-hover:text-white">Anti-Static Inner Sleeve</div>
+                  <div className="text-[10px] font-mono text-zinc-500">309 × 309 mm with die-cut window and corner guides</div>
                 </div>
                 <Download className="w-4 h-4 text-zinc-500 group-hover:text-rose-400 transition-colors" />
               </button>
