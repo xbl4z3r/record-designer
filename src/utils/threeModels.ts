@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { ProjectData, SlipmatStyle } from '../types';
 import {
   createVinylFaceTexture,
-  createVinylBumpTexture,
   createJacketFrontTexture,
   createJacketBackTexture,
   createJacketSpineTexture,
@@ -34,35 +33,38 @@ export function buildStudioSceneMeshes(
 
   let texSideA = createVinylFaceTexture(project, 'A', onTextureUpdated);
   let texSideB = createVinylFaceTexture(project, 'B', onTextureUpdated);
-  const bumpMap = createVinylBumpTexture();
 
-  const isTransparent = project?.vinyl?.colorStyle === 'transparent';
-  const vinylRoughness = project?.vinyl?.colorStyle === 'standard_black' ? 0.28 : 0.35;
+  const isTransparent = project?.vinyl?.baseMaterial === 'translucent' || project?.vinyl?.colorStyle === 'transparent';
+  const transparencyVal = project?.vinyl?.transparency || 0.85;
 
-  const matA = new THREE.MeshStandardMaterial({
+  const matA = new THREE.MeshPhysicalMaterial({
     map: texSideA,
-    bumpMap: bumpMap,
-    bumpScale: 0.012,
-    roughness: vinylRoughness,
-    metalness: 0.25,
+    roughness: 0.18,
+    metalness: 0.02,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.08,
     transparent: isTransparent,
-    opacity: isTransparent ? 0.75 : 1.0,
+    opacity: isTransparent ? Math.max(0.4, transparencyVal) : 1.0,
+    transmission: isTransparent ? 0.65 : 0.0,
+    ior: 1.49,
   });
 
-  const matB = new THREE.MeshStandardMaterial({
+  const matB = new THREE.MeshPhysicalMaterial({
     map: texSideB,
-    bumpMap: bumpMap,
-    bumpScale: 0.012,
-    roughness: vinylRoughness,
-    metalness: 0.25,
+    roughness: 0.18,
+    metalness: 0.02,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.08,
     transparent: isTransparent,
-    opacity: isTransparent ? 0.75 : 1.0,
+    opacity: isTransparent ? Math.max(0.4, transparencyVal) : 1.0,
+    transmission: isTransparent ? 0.65 : 0.0,
+    ior: 1.49,
   });
 
   const matRim = new THREE.MeshStandardMaterial({
-    color: project?.vinyl?.primaryColor || '#121214',
+    color: project?.vinyl?.baseColor || project?.vinyl?.primaryColor || '#121214',
     roughness: 0.35,
-    metalness: 0.2,
+    metalness: 0.1,
   });
 
   const discGeometry = new THREE.CylinderGeometry(radius, radius, thickness, 64, 1);
@@ -388,13 +390,16 @@ export function buildStudioSceneMeshes(
     slipmatMat.map = slipmatTex;
     slipmatMat.needsUpdate = true;
 
-    const newIsTransparent = newProject?.vinyl?.colorStyle === 'transparent';
+    const newIsTransparent = newProject?.vinyl?.baseMaterial === 'translucent' || newProject?.vinyl?.colorStyle === 'transparent';
+    const newTransVal = newProject?.vinyl?.transparency || 0.85;
     matA.transparent = newIsTransparent;
-    matA.opacity = newIsTransparent ? 0.75 : 1.0;
+    matA.opacity = newIsTransparent ? Math.max(0.4, newTransVal) : 1.0;
+    matA.transmission = newIsTransparent ? 0.65 : 0.0;
     matB.transparent = newIsTransparent;
-    matB.opacity = newIsTransparent ? 0.75 : 1.0;
+    matB.opacity = newIsTransparent ? Math.max(0.4, newTransVal) : 1.0;
+    matB.transmission = newIsTransparent ? 0.65 : 0.0;
 
-    matRim.color.set(newProject?.vinyl?.primaryColor || '#121214');
+    matRim.color.set(newProject?.vinyl?.baseColor || newProject?.vinyl?.primaryColor || '#121214');
 
     innerFrontTex.dispose();
     innerBackTex.dispose();

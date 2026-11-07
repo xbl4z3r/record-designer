@@ -1,5 +1,5 @@
 import { VinylConfig, CenterLabelConfig } from '../types';
-import { drawOrganicSplatter } from './threeTextures';
+import { renderPhotorealisticSplatter } from './splatterGenerator';
 
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -187,7 +187,7 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
   } else if (vinyl.colorStyle === 'splatter' || vinyl.finishEffect === 'splatter') {
     ctx.fillStyle = primaryColor;
     ctx.fill();
-    drawOrganicSplatter(ctx, radius, vinyl);
+    renderPhotorealisticSplatter(ctx, radius, vinyl);
   } else if (vinyl.colorStyle === 'picture_disc') {
     // Default disc background
     ctx.fillStyle = '#0f172a';

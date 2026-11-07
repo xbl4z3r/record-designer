@@ -16,6 +16,7 @@ import {
   Compass,
   Palette,
   ShieldCheck,
+  Package,
 } from 'lucide-react';
 
 interface StudioViewerProps {
@@ -121,7 +122,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.0;
 
     // Clear old children if any
     while (container.firstChild) {
@@ -130,11 +131,11 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // 4-Point Lighting Rig
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // Balanced Studio Lighting Rig (prevents color bleaching or washed-out blacks)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
     keyLight.position.set(6, 10, 8);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -142,11 +143,11 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     keyLight.shadow.bias = -0.0003;
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 1.4);
+    const fillLight = new THREE.DirectionalLight(0xa5b4fc, 0.7);
     fillLight.position.set(-8, 5, 5);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xf43f5e, 1.0);
+    const rimLight = new THREE.DirectionalLight(0xf43f5e, 0.7);
     rimLight.position.set(2, -2, -6);
     scene.add(rimLight);
     rimLightRef.current = rimLight;
@@ -211,30 +212,45 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
       // 2. Stage Mode layouts
       if (currentMode === 'sleeve_and_disc') {
-        // Full Package: Outer Jacket + Inner Sleeve + Vinyl Disc
+        // Full Package with 3-Stage Unboxing (Packed -> Slid Out -> Collector Gallery Spread)
         meshes.turntableGroup.visible = false;
         meshes.jacketGroup.visible = true;
         meshes.innerSleeveGroup.visible = true;
+        meshes.vinylGroup.visible = true;
 
-        meshes.jacketGroup.position.set(-1.6, 0, 0);
-        meshes.jacketGroup.rotation.set(0, 0, 0);
+        if (currentExtraction > 0.82) {
+          // Collector Gallery Spread: Jacket on left, Inner Sleeve in center, Vinyl on right
+          const t = (currentExtraction - 0.82) / 0.18;
+          meshes.jacketGroup.position.set(-1.6 - t * 2.4, 0, -t * 0.4);
+          meshes.jacketGroup.rotation.set(0, t * 0.18, 0);
 
-        // Anti-static inner sleeve emerges halfway from jacket
-        const innerX = -1.6 + currentExtraction * 1.8;
-        meshes.innerSleeveGroup.position.set(innerX, 0, 0);
-        meshes.innerSleeveGroup.rotation.set(0, 0, 0);
+          meshes.innerSleeveGroup.position.set(0, 0, 0);
+          meshes.innerSleeveGroup.rotation.set(0, 0, 0);
 
-        // Disc sits INSIDE the inner sleeve and slides out of inner sleeve mouth
-        const discX = -1.6 + currentExtraction * 3.6;
-        meshes.vinylGroup.position.set(discX, 0, 0);
+          meshes.vinylGroup.position.set(1.6 + t * 2.5, 0, t * 0.25);
+          meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
+          meshes.vinylGroup.rotation.z = 0;
+        } else {
+          // Sequential Unboxing Slide: Inner sleeve peeks out, record slides out from inner sleeve
+          meshes.jacketGroup.position.set(-1.5, 0, 0);
+          meshes.jacketGroup.rotation.set(0, 0, 0);
 
-        meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
-        meshes.vinylGroup.rotation.z = 0;
+          const innerX = -1.5 + currentExtraction * 1.8;
+          meshes.innerSleeveGroup.position.set(innerX, 0, 0);
+          meshes.innerSleeveGroup.rotation.set(0, 0, 0);
+
+          const discX = -1.5 + currentExtraction * 3.4;
+          meshes.vinylGroup.position.set(discX, 0, 0);
+
+          meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
+          meshes.vinylGroup.rotation.z = 0;
+        }
       } else if (currentMode === 'inner_and_disc') {
         // Anti-Static Inner Sleeve Focus: Jacket hidden, inner sleeve centered
         meshes.turntableGroup.visible = false;
         meshes.jacketGroup.visible = false;
         meshes.innerSleeveGroup.visible = true;
+        meshes.vinylGroup.visible = true;
 
         meshes.innerSleeveGroup.position.set(-0.9, 0, 0);
         meshes.innerSleeveGroup.rotation.set(0, 0, 0);
@@ -245,11 +261,21 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
         meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
         meshes.vinylGroup.rotation.z = 0;
+      } else if (currentMode === 'jacket_solo') {
+        // Outer Jacket Box Solo 3D inspection
+        meshes.turntableGroup.visible = false;
+        meshes.innerSleeveGroup.visible = false;
+        meshes.vinylGroup.visible = false;
+        meshes.jacketGroup.visible = true;
+
+        meshes.jacketGroup.position.set(0, 0, 0);
+        meshes.jacketGroup.rotation.set(0, 0, 0);
       } else if (currentMode === 'vinyl_solo') {
         // Vinyl Disc Solo 3D inspection
         meshes.turntableGroup.visible = false;
         meshes.jacketGroup.visible = false;
         meshes.innerSleeveGroup.visible = false;
+        meshes.vinylGroup.visible = true;
 
         meshes.vinylGroup.position.set(0, 0, 0);
         meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
@@ -258,6 +284,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         // Turntable Mode: Deck is visible in center
         meshes.turntableGroup.visible = true;
         meshes.innerSleeveGroup.visible = false;
+        meshes.vinylGroup.visible = true;
 
         // Prop album jacket behind the deck like "NOW PLAYING" stand
         meshes.jacketGroup.visible = true;
@@ -314,7 +341,10 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       cameraOrbit.current.radius = 13.5;
       cameraOrbit.current.target.set(0, 0, 0);
     } else if (displayMode === 'inner_and_disc') {
-      cameraOrbit.current.radius = 12.0;
+      cameraOrbit.current.radius = 11.0;
+      cameraOrbit.current.target.set(0, 0, 0);
+    } else if (displayMode === 'jacket_solo') {
+      cameraOrbit.current.radius = 10.5;
       cameraOrbit.current.target.set(0, 0, 0);
     } else if (displayMode === 'vinyl_solo') {
       cameraOrbit.current.radius = 9.8;
@@ -379,8 +409,10 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         ? 14.5
         : displayMode === 'vinyl_solo'
         ? 9.8
+        : displayMode === 'jacket_solo'
+        ? 10.5
         : displayMode === 'inner_and_disc'
-        ? 12.0
+        ? 11.0
         : 13.5;
 
     if (preset === 'hero') {
@@ -498,6 +530,17 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
             <span>INNER SLEEVE</span>
+          </button>
+          <button
+            onClick={() => setDisplayMode('jacket_solo')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+              displayMode === 'jacket_solo'
+                ? 'bg-zinc-800 text-white font-semibold shadow'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5 text-indigo-400" />
+            <span>JACKET SOLO</span>
           </button>
           <button
             onClick={() => setDisplayMode('vinyl_solo')}
@@ -661,11 +704,41 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         </button>
 
         {/* Mode-specific Controls */}
-        {(displayMode === 'sleeve_and_disc' || displayMode === 'inner_and_disc') ? (
+        {displayMode === 'sleeve_and_disc' ? (
           <>
             <div className="h-4 w-px bg-zinc-800" />
-            <div className="flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5 text-zinc-500" />
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+              <span className="text-zinc-500 font-mono">UNBOX:</span>
+              <button
+                type="button"
+                onClick={() => setExtraction(0)}
+                className={`px-2 py-0.5 rounded font-mono text-[10px] transition-colors ${
+                  extraction === 0 ? 'bg-zinc-800 text-white font-semibold' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Packed: record inside inner sleeve inside jacket"
+              >
+                Packed
+              </button>
+              <button
+                type="button"
+                onClick={() => setExtraction(0.55)}
+                className={`px-2 py-0.5 rounded font-mono text-[10px] transition-colors ${
+                  extraction > 0.2 && extraction < 0.8 ? 'bg-zinc-800 text-white font-semibold' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Slid out: inner sleeve emerging, record peeking out"
+              >
+                Slid Out
+              </button>
+              <button
+                type="button"
+                onClick={() => setExtraction(1.0)}
+                className={`px-2 py-0.5 rounded font-mono text-[10px] transition-colors ${
+                  extraction >= 0.8 ? 'bg-zinc-800 text-white font-semibold' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Spread: Collector gallery spread"
+              >
+                Spread
+              </button>
               <input
                 type="range"
                 min="0"
@@ -674,7 +747,24 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 value={extraction}
                 onChange={(e) => setExtraction(parseFloat(e.target.value))}
                 className="w-16 md:w-20 h-1 bg-zinc-800 rounded-lg cursor-pointer"
-                title="Disc Extraction Slider"
+                title="Interactive extraction slider"
+              />
+            </div>
+          </>
+        ) : displayMode === 'inner_and_disc' ? (
+          <>
+            <div className="h-4 w-px bg-zinc-800" />
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-500 font-mono text-[10px]">SLIDE:</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={extraction}
+                onChange={(e) => setExtraction(parseFloat(e.target.value))}
+                className="w-16 md:w-20 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                title="Slide record in/out of inner sleeve"
               />
             </div>
           </>

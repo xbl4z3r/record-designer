@@ -188,6 +188,7 @@ export type StudioDisplayMode =
   | 'sleeve_and_disc'
   | 'inner_and_disc'
   | 'vinyl_solo'
+  | 'jacket_solo'
   | 'turntable';
 export type SlipmatStyle = 'cork' | 'felt_black' | 'geometric' | 'rubber';
 
