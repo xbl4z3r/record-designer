@@ -71,16 +71,18 @@ export function drawInnerSleeve({
     }
 
     // Top archival banner strip
+    const bannerH = Math.round(w * 0.06);
     ctx.fillStyle = '#e2e8f0';
-    ctx.fillRect(0, 0, w, 55);
+    ctx.fillRect(0, 0, w, bannerH);
 
-    ctx.font = '600 16px "Geist Mono", monospace';
+    const bannerFontSize = Math.max(10, Math.round(w * 0.022));
+    ctx.font = `600 ${bannerFontSize}px "Geist Mono", monospace`;
     ctx.fillStyle = '#475569';
     ctx.textAlign = 'center';
     ctx.fillText(
       innerSleeve.archivalPrintText || 'ARCHIVAL MASTER SLEEVE • ANTI-STATIC HDPE • ACID FREE',
       w / 2,
-      34
+      bannerH * 0.65
     );
   } else if (type === 'poly_lined_paper') {
     ctx.fillStyle = innerSleeve.backgroundColor || '#ffffff';

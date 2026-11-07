@@ -68,25 +68,32 @@ function renderFront(
   const accent = jacket.accentColor || '#f43f5e';
 
   // Left spine fold highlight
-  const spineFoldGrad = ctx.createLinearGradient(0, 0, 30, 0);
+  const spineFoldGrad = ctx.createLinearGradient(0, 0, w * 0.04, 0);
   spineFoldGrad.addColorStop(0, 'rgba(0,0,0,0.4)');
   spineFoldGrad.addColorStop(0.3, 'rgba(255,255,255,0.06)');
   spineFoldGrad.addColorStop(1, 'transparent');
   ctx.fillStyle = spineFoldGrad;
-  ctx.fillRect(0, 0, 30, h);
+  ctx.fillRect(0, 0, w * 0.04, h);
 
   if (!jacket.frontArtwork) {
-    ctx.fillStyle = accent;
-    ctx.fillRect(40, 40, 8, 80);
+    const pad = w * 0.07;
+    const barW = w * 0.014;
+    const barH = w * 0.11;
 
-    ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = accent;
+    ctx.fillRect(pad, pad, barW, barH);
+
+    const artistSize = Math.round(w * 0.038);
+    const titleSize = Math.round(w * 0.064);
+
+    ctx.font = `700 ${artistSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'left';
-    ctx.fillText((jacket.artistName || 'ARTIST NAME').toUpperCase(), 60, 65);
+    ctx.fillText((jacket.artistName || 'ARTIST NAME').toUpperCase(), pad + barW + 16, pad + artistSize);
 
-    ctx.font = '300 42px "Plus Jakarta Sans", sans-serif';
+    ctx.font = `300 ${titleSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#f4f4f5';
-    ctx.fillText((jacket.albumTitle || 'ALBUM TITLE').toUpperCase(), 60, 110);
+    ctx.fillText((jacket.albumTitle || 'ALBUM TITLE').toUpperCase(), pad + barW + 16, pad + artistSize + titleSize + 8);
 
     if (jacket.centerCutoutHole) {
       ctx.save();
@@ -100,54 +107,61 @@ function renderFront(
       ctx.beginPath();
       ctx.arc(w / 2, h / 2, w * 0.17, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = Math.max(2, w * 0.004);
       ctx.stroke();
       ctx.restore();
     } else {
       ctx.strokeStyle = `${accent}35`;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = Math.max(1.5, w * 0.0025);
       ctx.strokeRect(w * 0.15, h * 0.3, w * 0.7, h * 0.42);
 
       ctx.fillStyle = `${accent}10`;
       ctx.fillRect(w * 0.15, h * 0.3, w * 0.7, h * 0.42);
 
-      ctx.font = '600 16px "Geist Mono", monospace';
+      const frameH1 = Math.round(w * 0.024);
+      const frameH2 = Math.round(w * 0.019);
+      ctx.font = `600 ${frameH1}px "Geist Mono", monospace`;
       ctx.fillStyle = accent;
       ctx.textAlign = 'center';
-      ctx.fillText(`${(vinyl?.size || '12inch').toUpperCase()} AUDIOPHILE PRESSING`, w / 2, h / 2 - 10);
+      ctx.fillText(`${(vinyl?.size || '12inch').toUpperCase()} AUDIOPHILE PRESSING`, w / 2, h / 2 - 12);
 
-      ctx.font = '400 13px "Geist Mono", monospace';
+      ctx.font = `400 ${frameH2}px "Geist Mono", monospace`;
       ctx.fillStyle = '#a1a1aa';
-      ctx.fillText(`${vinyl?.weight || '180g'} • ${(vinyl?.rpm || '33rpm').toUpperCase()}`, w / 2, h / 2 + 18);
+      ctx.fillText(`${vinyl?.weight || '180g'} • ${(vinyl?.rpm || '33rpm').toUpperCase()}`, w / 2, h / 2 + 24);
     }
 
-    ctx.font = '500 15px "Geist Mono", monospace';
+    const catSize = Math.round(w * 0.024);
+    ctx.font = `500 ${catSize}px "Geist Mono", monospace`;
     ctx.fillStyle = '#a1a1aa';
     ctx.textAlign = 'left';
-    ctx.fillText(jacket.catalogNumber || 'CAT-001', 40, h - 40);
+    ctx.fillText(jacket.catalogNumber || 'CAT-001', pad, h - pad);
   }
 
   // Obi Strip wrap if enabled
   if (obi?.enabled) {
-    const obiW = 110;
-    const obiX = obi.position === 'left' ? 30 : w - obiW - 30;
+    const obiW = w * 0.17;
+    const obiX = obi.position === 'left' ? w * 0.05 : w - obiW - w * 0.05;
 
     ctx.fillStyle = obi.backgroundColor || '#f43f5e';
     ctx.fillRect(obiX, 0, obiW, h);
 
     ctx.fillStyle = obi.textColor || '#ffffff';
     ctx.textAlign = 'center';
-    ctx.font = '700 20px sans-serif';
-    ctx.fillText(obi.japaneseTitle || '邦題タイトル', obiX + obiW / 2, 140);
+    const obiTitle = Math.round(w * 0.032);
+    ctx.font = `700 ${obiTitle}px sans-serif`;
+    ctx.fillText(obi.japaneseTitle || '邦題タイトル', obiX + obiW / 2, h * 0.22);
 
-    ctx.font = '500 14px sans-serif';
-    ctx.fillText(obi.katakanaArtist || 'アーティスト', obiX + obiW / 2, 180);
+    const obiArtist = Math.round(w * 0.024);
+    ctx.font = `500 ${obiArtist}px sans-serif`;
+    ctx.fillText(obi.katakanaArtist || 'アーティスト', obiX + obiW / 2, h * 0.28);
 
-    ctx.font = '700 16px "Geist Mono", monospace';
-    ctx.fillText(obi.priceJpy || '¥4,180', obiX + obiW / 2, h - 70);
+    const obiPrice = Math.round(w * 0.026);
+    ctx.font = `700 ${obiPrice}px "Geist Mono", monospace`;
+    ctx.fillText(obi.priceJpy || '¥4,180', obiX + obiW / 2, h - w * 0.1);
 
-    ctx.font = '400 11px "Geist Mono", monospace';
-    ctx.fillText(obi.releaseCode || 'JPC-01', obiX + obiW / 2, h - 45);
+    const obiCode = Math.round(w * 0.018);
+    ctx.font = `400 ${obiCode}px "Geist Mono", monospace`;
+    ctx.fillText(obi.releaseCode || 'JPC-01', obiX + obiW / 2, h - w * 0.06);
   }
 }
 
@@ -170,73 +184,83 @@ function renderBack(
   }
 
   if (!jacket.backArtwork) {
-    ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
+    const pad = w * 0.07;
+    const artistSize = Math.round(w * 0.035);
+    const titleSize = Math.round(w * 0.052);
+
+    ctx.font = `700 ${artistSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'left';
-    ctx.fillText((jacket.artistName || 'ARTIST NAME').toUpperCase(), 40, 60);
+    ctx.fillText((jacket.artistName || 'ARTIST NAME').toUpperCase(), pad, pad + artistSize);
 
-    ctx.font = '400 32px "Plus Jakarta Sans", sans-serif';
+    ctx.font = `400 ${titleSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = jacket.accentColor || '#f43f5e';
-    ctx.fillText((jacket.albumTitle || 'ALBUM TITLE').toUpperCase(), 40, 100);
+    ctx.fillText((jacket.albumTitle || 'ALBUM TITLE').toUpperCase(), pad, pad + artistSize + titleSize + 10);
 
-    const colY = 160;
-    const col1X = 40;
-    const col2X = w / 2 + 20;
+    const colY = pad + artistSize + titleSize + w * 0.08;
+    const col1X = pad;
+    const col2X = w / 2 + w * 0.04;
+
+    const colHeaderSize = Math.round(w * 0.024);
+    const trackSize = Math.round(w * 0.02);
+    const rowHeight = Math.round(w * 0.044);
 
     // Side A
-    ctx.font = '700 14px "Geist Mono", monospace';
+    ctx.font = `700 ${colHeaderSize}px "Geist Mono", monospace`;
     ctx.fillStyle = '#ffffff';
     ctx.fillText('SIDE A  [ 33 ⅓ RPM ]', col1X, colY);
 
-    ctx.font = '400 12px "Plus Jakarta Sans", sans-serif';
+    ctx.font = `400 ${trackSize}px "Plus Jakarta Sans", sans-serif`;
     (vinyl?.sideALabel?.tracks || []).forEach((track, i) => {
-      const y = colY + 28 + i * 26;
+      const y = colY + colHeaderSize + 14 + i * rowHeight;
       ctx.fillStyle = '#a1a1aa';
       ctx.fillText(track.number, col1X, y);
       ctx.fillStyle = '#f4f4f5';
-      ctx.fillText(track.title, col1X + 28, y);
+      ctx.fillText(track.title, col1X + w * 0.05, y);
       ctx.fillStyle = '#71717a';
-      ctx.fillText(track.duration, col1X + 220, y);
+      ctx.fillText(track.duration, col1X + w * 0.35, y);
     });
 
     // Side B
-    ctx.font = '700 14px "Geist Mono", monospace';
+    ctx.font = `700 ${colHeaderSize}px "Geist Mono", monospace`;
     ctx.fillStyle = '#ffffff';
     ctx.fillText('SIDE B  [ 33 ⅓ RPM ]', col2X, colY);
 
     (vinyl?.sideBLabel?.tracks || []).forEach((track, i) => {
-      const y = colY + 28 + i * 26;
+      const y = colY + colHeaderSize + 14 + i * rowHeight;
       ctx.fillStyle = '#a1a1aa';
       ctx.fillText(track.number, col2X, y);
       ctx.fillStyle = '#f4f4f5';
-      ctx.fillText(track.title, col2X + 28, y);
+      ctx.fillText(track.title, col2X + w * 0.05, y);
       ctx.fillStyle = '#71717a';
-      ctx.fillText(track.duration, col2X + 220, y);
+      ctx.fillText(track.duration, col2X + w * 0.35, y);
     });
 
     // Footer barcode
     const code = jacket.barcode || '7 93573 19482 0';
-    const barW = 100;
-    const barH = 50;
-    const barX = w - barW - 40;
-    const barY = h - barH - 40;
+    const barW = Math.round(w * 0.24);
+    const barH = Math.round(w * 0.11);
+    const barX = w - barW - pad;
+    const barY = h - barH - pad;
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = '#000000';
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 28; i++) {
       if ((i * 7 + 3) % 4 !== 0) {
-        ctx.fillRect(barX + 8 + i * 3.5, barY + 6, 2, barH - 18);
+        ctx.fillRect(barX + 12 + i * (barW * 0.03), barY + 10, barW * 0.02, barH - 32);
       }
     }
-    ctx.font = '500 8px "Geist Mono", monospace';
+    const barFontSize = Math.max(8, Math.round(w * 0.015));
+    ctx.font = `500 ${barFontSize}px "Geist Mono", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText(code, barX + barW / 2, barY + barH - 4);
+    ctx.fillText(code, barX + barW / 2, barY + barH - 8);
 
-    ctx.font = '400 9px "Geist Mono", monospace';
+    const copySize = Math.max(8, Math.round(w * 0.016));
+    ctx.font = `400 ${copySize}px "Geist Mono", monospace`;
     ctx.fillStyle = '#71717a';
     ctx.textAlign = 'left';
-    ctx.fillText(vinyl?.sideALabel?.copyrightNotice || '℗ & © 2026. ALL RIGHTS RESERVED.', 40, h - 50);
+    ctx.fillText(vinyl?.sideALabel?.copyrightNotice || '℗ & © 2026. ALL RIGHTS RESERVED.', pad, h - pad);
   }
 
   if (jacket.centerCutoutHole) {

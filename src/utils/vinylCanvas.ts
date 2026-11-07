@@ -309,10 +309,11 @@ function drawDeadWaxAndMatrix(
 
   // Matrix text stamped into dead wax
   const matrixText = side === 'A' ? (vinyl.matrixTextSideA || 'SIDE A') : (vinyl.matrixTextSideB || 'SIDE B');
-  const textRadius = (labelRadius + deadWaxRadius) / 2 + 6;
+  const textRadius = (labelRadius + deadWaxRadius) / 2 + 8;
+  const matrixFontSize = Math.max(10, Math.round(radius * 0.022));
 
-  ctx.font = '500 8px "Geist Mono", monospace';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.font = `500 ${matrixFontSize}px "Geist Mono", monospace`;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -364,7 +365,7 @@ function drawCenterLabel(
   }
 
   // Border ring indent
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = Math.max(1.5, Math.round(labelRadius * 0.015));
   ctx.strokeStyle = label.accentColor || 'rgba(0,0,0,0.15)';
   ctx.stroke();
 
@@ -372,49 +373,57 @@ function drawCenterLabel(
   ctx.beginPath();
   ctx.arc(0, 0, labelRadius * 0.88, 0, Math.PI * 2);
   ctx.strokeStyle = label.accentColor ? `${label.accentColor}33` : 'rgba(0,0,0,0.08)';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = Math.max(1, Math.round(labelRadius * 0.008));
   ctx.stroke();
 
-  // Label text & typography layout
+  // Scaled High-Res Typography
   ctx.fillStyle = label.textColor || '#000000';
   ctx.textAlign = 'center';
 
+  const catFont = Math.max(8, Math.round(labelRadius * 0.075));
+  const rpmFont = Math.max(7, Math.round(labelRadius * 0.06));
+  const titleFont = Math.max(10, Math.round(labelRadius * 0.105));
+  const artistFont = Math.max(8, Math.round(labelRadius * 0.08));
+  const trackFont = Math.max(7, Math.round(labelRadius * 0.068));
+  const trackGap = Math.max(11, Math.round(labelRadius * 0.105));
+  const copyFont = Math.max(6, Math.round(labelRadius * 0.048));
+
   // Catalog No. / Side indicator at top
-  ctx.font = '600 7px "Geist Mono", monospace';
+  ctx.font = `600 ${catFont}px "Geist Mono", monospace`;
   ctx.fillText(`${label.catalogNumber || 'CAT-01'}  •  ${label.sideIndicator || 'SIDE A'}`, 0, -labelRadius * 0.65);
 
   // RPM badge
-  ctx.font = '500 6px "Geist Mono", monospace';
+  ctx.font = `500 ${rpmFont}px "Geist Mono", monospace`;
   ctx.fillStyle = label.accentColor || label.textColor;
   ctx.fillText(label.rpmBadge || '33 ⅓ RPM', 0, -labelRadius * 0.52);
 
   // Title
   ctx.fillStyle = label.textColor || '#000000';
-  ctx.font = '700 9.5px "Plus Jakarta Sans", sans-serif';
+  ctx.font = `700 ${titleFont}px "Plus Jakarta Sans", sans-serif`;
   const cleanTitle = (label.title || 'UNTITLED').toUpperCase();
   ctx.fillText(cleanTitle.length > 22 ? cleanTitle.slice(0, 20) + '...' : cleanTitle, 0, -labelRadius * 0.28);
 
   // Artist
-  ctx.font = '500 7.5px "Plus Jakarta Sans", sans-serif';
+  ctx.font = `500 ${artistFont}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillText(label.artist || 'UNKNOWN ARTIST', 0, -labelRadius * 0.16);
 
   // Track listing under spindle hole
   const tracksToDisplay = (label.tracks || []).slice(0, 4);
-  const startY = labelRadius * 0.26;
+  const startY = labelRadius * 0.27;
   ctx.textAlign = 'center';
-  ctx.font = '400 6.5px "Plus Jakarta Sans", sans-serif';
+  ctx.font = `400 ${trackFont}px "Plus Jakarta Sans", sans-serif`;
 
   tracksToDisplay.forEach((track, idx) => {
-    const y = startY + idx * 10;
+    const y = startY + idx * trackGap;
     const line = `${track.number || idx + 1}. ${track.title} [${track.duration || '3:00'}]`;
     ctx.fillText(line.length > 28 ? line.slice(0, 26) + '...' : line, 0, y);
   });
 
   // Copyright text at bottom
-  ctx.font = '400 5px "Geist Mono", monospace';
+  ctx.font = `400 ${copyFont}px "Geist Mono", monospace`;
   ctx.fillStyle = 'rgba(120, 120, 120, 0.85)';
   const copyright = label.copyrightNotice || 'ALL RIGHTS RESERVED';
-  ctx.fillText(copyright.length > 36 ? copyright.slice(0, 34) + '...' : copyright, 0, labelRadius * 0.78);
+  ctx.fillText(copyright.length > 36 ? copyright.slice(0, 34) + '...' : copyright, 0, labelRadius * 0.8);
 
   ctx.restore();
 }

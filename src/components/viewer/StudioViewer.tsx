@@ -478,8 +478,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 >
                   <canvas
                     ref={jacketFrontCanvasRef}
-                    width={720}
-                    height={720}
+                    width={1400}
+                    height={1400}
                     className="w-full h-full object-cover"
                   />
                   {/* Left Spine Shadow Edge */}
@@ -495,8 +495,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 >
                   <canvas
                     ref={jacketBackCanvasRef}
-                    width={720}
-                    height={720}
+                    width={1400}
+                    height={1400}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -518,8 +518,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
                 <div className="relative w-[345px] h-[345px] rounded-[2px] overflow-hidden border border-slate-300/30">
                   <canvas
                     ref={innerSleeveCanvasRef}
-                    width={720}
-                    height={720}
+                    width={1400}
+                    height={1400}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -539,8 +539,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
               >
                 <canvas
                   ref={vinylCanvasRef}
-                  width={800}
-                  height={800}
+                  width={1400}
+                  height={1400}
                   className="w-[340px] h-[340px] rounded-full"
                 />
               </div>

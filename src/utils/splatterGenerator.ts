@@ -1,43 +1,46 @@
 /**
  * Photorealistic IRL Vinyl Splatter Algorithm
  *
- * Simulates the hydraulic steam-press physics of vinyl pellet extrusion:
- * - Molten pellets are pressed outward from the center toward the rim.
- * - Produces long, jagged, dendritic flame rays radiating outward.
- * - Branching feathered filament whiskers along the audio groove trajectories.
- * - Satellite micro-droplets and flecks flung centrifugally beyond the ray tips.
- * - True 1-tone, 2-tone, and 3-tone color pellet blending.
+ * Simulates hydraulic steam-press molten pellet flow:
+ * - Long radial centrifugal flame streaks extending from center toward the outer rim.
+ * - Whisker filaments branching along groove vectors.
+ * - Satellite micro-droplets peppered across the disc.
+ * - Multi-color pellet blending (1-tone, 2-tone, and 3-tone).
  */
 export function renderPhotorealisticSplatter(
   ctx: CanvasRenderingContext2D,
   radius: number,
   vinyl: any
 ) {
-  const toneCount = vinyl.splatterToneCount || 1;
-  const c1 = vinyl.splatterColor1 || vinyl.splatterColor || '#ec4899';
-  const c2 = vinyl.splatterColor2 || vinyl.secondaryColor || '#6366f1';
-  const c3 = vinyl.splatterColor3 || '#38bdf8';
-  const colors = toneCount === 3 ? [c1, c2, c3] : toneCount === 2 ? [c1, c2] : [c1];
+  // Determine tone count: explicit splatterToneCount or derived from configured colors
+  const toneCount =
+    vinyl.splatterToneCount ||
+    (vinyl.splatterColor3 ? 3 : vinyl.splatterColor2 ? 2 : 1);
 
-  const density = Math.min(100, Math.max(12, vinyl.splatterDensity || 42));
+  const c1 = vinyl.splatterColor1 || vinyl.splatterColor || '#ec4899';
+  const c2 = vinyl.splatterColor2 || '#6366f1';
+  const c3 = vinyl.splatterColor3 || '#38bdf8';
+
+  const colors: string[] =
+    toneCount >= 3 ? [c1, c2, c3] : toneCount === 2 ? [c1, c2] : [c1];
+
+  const density = Math.min(100, Math.max(10, vinyl.splatterDensity || 44));
   const spread = Math.min(2.5, Math.max(0.4, vinyl.splatterSpread || 1.15));
 
   ctx.save();
-  ctx.clip(); // Constrain strictly inside disc perimeter
+  ctx.clip(); // Constrain within disc bounds
 
   const labelRadius = radius * 0.335;
   const outerRim = radius * 0.96;
 
-  // Number of pellet seed drops distributed around the biscuit
-  const clusterCount = Math.floor(density * 0.45) + 6;
+  // Number of pellet seed drops proportional to density
+  const clusterCount = Math.floor(density * 0.55) + 6;
 
   for (let b = 0; b < clusterCount; b++) {
-    const color = colors[b % colors.length];
-
-    // Quasi-random golden angle distribution around the disc
+    // Golden angle distribution for natural spread around the disc
     const baseAngle = b * 2.39996 + ((b * 19) % 100) * 0.012;
     // Pellets fall between dead-wax and middle track area
-    const startRadius = labelRadius + 30 + ((b * 37) % 100) * ((radius * 0.42) / 100);
+    const startRadius = labelRadius + 15 + ((b * 37) % 100) * ((radius * 0.42) / 100);
 
     const pelletX = Math.cos(baseAngle) * startRadius;
     const pelletY = Math.sin(baseAngle) * startRadius;
@@ -46,14 +49,17 @@ export function renderPhotorealisticSplatter(
     const rayCount = 3 + ((b * 7) % 5);
 
     for (let r = 0; r < rayCount; r++) {
+      // In multi-tone splatter, intermix colors across rays
+      const color = colors[(b + r) % colors.length];
+
       // Ray radiates outward from center spindle toward the outer rim
       const rayAngle = baseAngle + ((r - rayCount / 2) * 0.11) + (((b * 13 + r * 7) % 20) - 10) * 0.006;
 
-      // Real vinyl splatter rays stretch across 35% to 75% of the music groove area!
+      // Real vinyl splatter rays stretch across 35% to 80% of the music groove area!
       const availableDist = outerRim - startRadius;
       const rayLength = Math.min(
         availableDist,
-        (availableDist * 0.35 + ((b * 31 + r * 47) % 100) * (availableDist * 0.55 / 100)) * spread
+        (availableDist * 0.38 + ((b * 31 + r * 47) % 100) * (availableDist * 0.55 / 100)) * spread
       );
 
       const endX = pelletX + Math.cos(rayAngle) * rayLength;
@@ -122,10 +128,11 @@ export function renderPhotorealisticSplatter(
     }
 
     // Melted pellet core blob
+    const coreColor = colors[b % colors.length];
     const coreRadius = (3.5 + ((b * 13) % 5)) * spread;
     ctx.beginPath();
     ctx.arc(pelletX, pelletY, coreRadius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
+    ctx.fillStyle = coreColor;
     ctx.fill();
   }
 

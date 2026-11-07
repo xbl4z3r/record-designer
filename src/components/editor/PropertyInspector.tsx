@@ -421,40 +421,101 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                 </div>
               )}
 
-              {project.vinyl.colorStyle === 'splatter' && (
+              {(project.vinyl.colorStyle === 'splatter' || project.vinyl.finishEffect === 'splatter') && (
                 <>
+                  <div>
+                    <span className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Splatter Tones</span>
+                    <div className="grid grid-cols-3 gap-1 p-0.5 bg-zinc-950 rounded border border-zinc-800 text-center text-[10px] font-mono">
+                      {([1, 2, 3] as const).map((count) => {
+                        const activeCount = project.vinyl.splatterToneCount || (project.vinyl.splatterColor3 ? 3 : project.vinyl.splatterColor2 ? 2 : 1);
+                        return (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => {
+                              updateVinyl({
+                                splatterToneCount: count,
+                                splatterColor1: project.vinyl.splatterColor1 || project.vinyl.splatterColor || '#ec4899',
+                                splatterColor2: project.vinyl.splatterColor2 || '#6366f1',
+                                splatterColor3: project.vinyl.splatterColor3 || '#38bdf8',
+                              });
+                            }}
+                            className={`py-1 rounded transition-colors ${
+                              activeCount === count ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                          >
+                            {count}-Tone
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-zinc-400">Splatter Fleck Color 1</span>
+                    <span className="text-[11px] font-mono text-zinc-400">Splatter Color 1</span>
                     <input
                       type="color"
-                      value={project.vinyl.splatterColor}
-                      onChange={(e) => updateVinyl({ splatterColor: e.target.value })}
+                      value={project.vinyl.splatterColor1 || project.vinyl.splatterColor || '#ec4899'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateVinyl({ splatterColor: val, splatterColor1: val });
+                      }}
                       className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
                     />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-zinc-400">Splatter Fleck Color 2</span>
-                    <input
-                      type="color"
-                      value={project.vinyl.splatterColor2 || '#6366f1'}
-                      onChange={(e) => updateVinyl({ splatterColor2: e.target.value })}
-                      className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
-                    />
-                  </div>
+                  {((project.vinyl.splatterToneCount || 1) >= 2 || project.vinyl.splatterColor2) && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-zinc-400">Splatter Color 2</span>
+                      <input
+                        type="color"
+                        value={project.vinyl.splatterColor2 || '#6366f1'}
+                        onChange={(e) => updateVinyl({ splatterColor2: e.target.value, splatterToneCount: Math.max(2, project.vinyl.splatterToneCount || 2) as any })}
+                        className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
+                      />
+                    </div>
+                  )}
+
+                  {(project.vinyl.splatterToneCount === 3 || project.vinyl.splatterColor3) && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-zinc-400">Splatter Color 3</span>
+                      <input
+                        type="color"
+                        value={project.vinyl.splatterColor3 || '#38bdf8'}
+                        onChange={(e) => updateVinyl({ splatterColor3: e.target.value, splatterToneCount: 3 })}
+                        className="w-7 h-7 rounded border border-zinc-700 bg-transparent cursor-pointer"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <div className="flex justify-between text-[10px] font-mono text-zinc-500 mb-1">
                       <span>SPLATTER DENSITY</span>
-                      <span>{project.vinyl.splatterDensity || 48} flecks</span>
+                      <span>{project.vinyl.splatterDensity || 44} bursts</span>
                     </div>
                     <input
                       type="range"
                       min="12"
                       max="96"
                       step="4"
-                      value={project.vinyl.splatterDensity || 48}
+                      value={project.vinyl.splatterDensity || 44}
                       onChange={(e) => updateVinyl({ splatterDensity: parseInt(e.target.value) })}
+                      className="w-full h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[10px] font-mono text-zinc-500 mb-1">
+                      <span>RADIAL BURST SPREAD</span>
+                      <span>{Math.round((project.vinyl.splatterSpread || 1.15) * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.05"
+                      value={project.vinyl.splatterSpread || 1.15}
+                      onChange={(e) => updateVinyl({ splatterSpread: parseFloat(e.target.value) })}
                       className="w-full h-1 bg-zinc-800 rounded-lg cursor-pointer"
                     />
                   </div>
