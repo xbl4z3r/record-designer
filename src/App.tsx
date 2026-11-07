@@ -7,7 +7,7 @@ import { DiecutEditor } from './components/editor/DiecutEditor';
 import { SpecsSheet } from './components/export/SpecsSheet';
 import { PropertyInspector } from './components/editor/PropertyInspector';
 import { ExportModal } from './components/export/ExportModal';
-import { Sliders, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 const STORAGE_KEY = 'groovestudio_project_data_v1';
 

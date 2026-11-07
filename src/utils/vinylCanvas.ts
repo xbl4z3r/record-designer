@@ -228,7 +228,6 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
 function drawGrooves(ctx: CanvasRenderingContext2D, radius: number, vinyl: VinylConfig) {
   ctx.save();
 
-  const labelOuterRadius = radius * 0.34;
   const deadWaxOuterRadius = radius * 0.46;
   const musicOuterRadius = radius * 0.94;
 
@@ -322,7 +321,7 @@ function drawCenterLabel(
   ctx: CanvasRenderingContext2D,
   radius: number,
   label: CenterLabelConfig,
-  vinyl: VinylConfig
+  _vinyl: VinylConfig
 ) {
   ctx.save();
 

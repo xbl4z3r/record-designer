@@ -1,17 +1,10 @@
 import React from 'react';
-import { ProjectData, VinylSize, VinylRpm, VinylWeight, VinylColorStyle, JacketType, CardstockType, FinishType, SpecialFX } from '../../types';
+import { ProjectData, VinylSize, VinylWeight, VinylColorStyle, JacketType, CardstockType, FinishType, SpecialFX } from '../../types';
 import { PRESET_PROJECTS } from '../../presets';
 import {
   Sliders,
-  Disc,
-  Package,
-  FileText,
-  Palette,
-  Layers,
   Plus,
   Trash2,
-  Sparkles,
-  Image as ImageIcon,
   Upload,
   X,
 } from 'lucide-react';

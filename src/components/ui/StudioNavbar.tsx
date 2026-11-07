@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   Download,
   Upload,
-  Check,
   Disc,
 } from 'lucide-react';
 

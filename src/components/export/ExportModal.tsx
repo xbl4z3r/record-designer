@@ -5,11 +5,8 @@ import {
   X,
   Download,
   FileCode,
-  Image,
   FileText,
-  CheckCircle,
   Package,
-  Layers,
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -19,9 +16,9 @@ interface ExportModalProps {
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   const [downloading, setDownloading] = useState<string | null>(null);
+
+  if (!isOpen) return null;
 
   const downloadFile = (filename: string, content: string, type: string) => {
     const blob = new Blob([content], { type });
@@ -130,7 +127,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
                     <div className="text-xs font-semibold text-zinc-200 group-hover:text-white">Japanese Obi Strip Template</div>
                     <div className="text-[10px] font-mono text-zinc-500">{project.obi.widthMm}mm wrap bellyband with fold lines</div>
                   </div>
-                  <Download className="w-4 h-4 text-zinc-500 group-hover:text-rose-400 transition-colors" />
+                <Download className={`w-4 h-4 transition-colors ${downloading === 'jacket_spread' ? 'text-emerald-400 animate-bounce' : 'text-zinc-500 group-hover:text-rose-400'}`} />
                 </button>
               )}
             </div>

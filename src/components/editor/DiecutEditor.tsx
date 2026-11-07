@@ -7,25 +7,21 @@ import {
   ZoomOut,
   Maximize,
   Download,
-  Eye,
   FileCode,
   Ruler,
-  ShieldAlert,
-  SlidersHorizontal,
 } from 'lucide-react';
 
 interface DiecutEditorProps {
   project: ProjectData;
   activeComponent: ActiveDiecutComponent;
   onSelectComponent: (comp: ActiveDiecutComponent) => void;
-  onUpdateProject: (updater: (prev: ProjectData) => ProjectData) => void;
+  onUpdateProject?: (updater: (prev: ProjectData) => ProjectData) => void;
 }
 
 export const DiecutEditor: React.FC<DiecutEditorProps> = ({
   project,
   activeComponent,
   onSelectComponent,
-  onUpdateProject,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
