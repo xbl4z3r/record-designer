@@ -419,18 +419,20 @@ export function createJacketFrontTexture(
     ctx.fillText((jacket.albumTitle || 'ALBUM TITLE').toUpperCase(), 105, 175);
 
     if (jacket.centerCutoutHole) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
       ctx.arc(w / 2, h / 2, 170, 0, Math.PI * 2);
-      ctx.fillStyle = '#08080a';
       ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#3f3f46';
-      ctx.stroke();
+      ctx.restore();
 
-      ctx.font = '500 20px "Geist Mono", monospace';
-      ctx.fillStyle = '#71717a';
-      ctx.textAlign = 'center';
-      ctx.fillText('DIE-CUT APERTURE', w / 2, h / 2);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, 170, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
     } else {
       ctx.strokeStyle = `${accent}35`;
       ctx.lineWidth = 2.5;
@@ -582,6 +584,23 @@ export function createJacketBackTexture(
     ctx.fillStyle = '#71717a';
     ctx.textAlign = 'left';
     ctx.fillText(project?.vinyl?.sideALabel?.copyrightNotice || '℗ & © 2026. ALL RIGHTS RESERVED.', 70, h - 80);
+  }
+
+  if (jacket.centerCutoutHole) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, 170, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, 170, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
   }
 
   texture.needsUpdate = true;

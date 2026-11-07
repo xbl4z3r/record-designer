@@ -42,25 +42,22 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
   // Mutable refs for animation loop
   const isPlayingRef = useRef(isPlaying);
-  isPlayingRef.current = isPlaying;
-
   const rpmRef = useRef(rpm);
-  rpmRef.current = rpm;
-
   const pitchRef = useRef(pitch);
-  pitchRef.current = pitch;
-
   const sideRef = useRef(side);
-  sideRef.current = side;
-
   const extractionRef = useRef(extraction);
-  extractionRef.current = extraction;
-
   const displayModeRef = useRef(displayMode);
-  displayModeRef.current = displayMode;
-
   const showSheenRef = useRef(showSheen);
-  showSheenRef.current = showSheen;
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+    rpmRef.current = rpm;
+    pitchRef.current = pitch;
+    sideRef.current = side;
+    extractionRef.current = extraction;
+    displayModeRef.current = displayMode;
+    showSheenRef.current = showSheen;
+  }, [isPlaying, rpm, pitch, side, extraction, displayMode, showSheen]);
 
   // Three.js internal scene references
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -217,12 +214,14 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         meshes.jacketGroup.visible = true;
 
         // Position jacket on the left
-        meshes.jacketGroup.position.set(-1.0, 0, 0);
+        meshes.jacketGroup.position.set(-1.2, 0, 0);
         meshes.jacketGroup.rotation.set(0, 0, 0);
 
-        // Disc slides out from jacket to the right
-        const discX = -1.0 + currentExtraction * 2.7;
-        meshes.vinylGroup.position.set(discX, 0, 0.08);
+        // Disc sits INSIDE the hollow sleeve pocket at Z = 0 (between front and back covers)
+        // At extraction = 0: disc is nestled completely inside the sleeve cavity
+        // At extraction = 1: disc is fully drawn out through the right mouth
+        const discX = -1.2 + currentExtraction * 3.2;
+        meshes.vinylGroup.position.set(discX, 0, 0);
 
         // Disc is upright in sleeve mode
         meshes.vinylGroup.rotation.x = currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2;
@@ -270,6 +269,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         container.removeChild(container.firstChild);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
   // 2. Instant Material / Texture Updates when project or slipmat changes

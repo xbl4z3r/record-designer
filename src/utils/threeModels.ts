@@ -70,12 +70,14 @@ export function buildStudioSceneMeshes(
   discMesh.name = 'DiscMesh';
   vinylGroup.add(discMesh);
 
-  // 2. JACKET BOX GROUP
+  // 2. HOLLOW POCKET JACKET SLEEVE GROUP
   const jacketGroup = new THREE.Group();
   jacketGroup.name = 'JacketGroup';
 
   const size = 5.0;
-  const spineWidth = 0.09;
+  const spineWidth = 0.16; // Generous spine depth for hollow cavity
+  const cardboardThickness = 0.015;
+  const halfSpine = spineWidth / 2;
 
   let frontTex = createJacketFrontTexture(project, onTextureUpdated);
   let backTex = createJacketBackTexture(project, onTextureUpdated);
@@ -83,17 +85,22 @@ export function buildStudioSceneMeshes(
 
   const finish = project?.jacket?.finish;
   const cardstockRoughness = finish === 'gloss' ? 0.15 : finish === 'soft_touch' ? 0.75 : 0.55;
+  const hasCutout = !!project?.jacket?.centerCutoutHole;
 
   const matFront = new THREE.MeshStandardMaterial({
     map: frontTex,
     roughness: cardstockRoughness,
     metalness: 0.05,
+    transparent: hasCutout,
+    alphaTest: hasCutout ? 0.5 : 0,
   });
 
   const matBack = new THREE.MeshStandardMaterial({
     map: backTex,
     roughness: cardstockRoughness,
     metalness: 0.05,
+    transparent: hasCutout,
+    alphaTest: hasCutout ? 0.5 : 0,
   });
 
   const matSpine = new THREE.MeshStandardMaterial({
@@ -107,20 +114,53 @@ export function buildStudioSceneMeshes(
     roughness: 0.6,
   });
 
-  const jacketGeo = new THREE.BoxGeometry(size, size, spineWidth);
-  const jacketMaterials = [
-    matEdge, // Right
-    matSpine, // Left (spine)
-    matEdge, // Top
-    matEdge, // Bottom
-    matFront, // Front
-    matBack, // Back
-  ];
+  const matInside = new THREE.MeshStandardMaterial({
+    color: '#1c1917', // Natural kraft cardboard interior pocket
+    roughness: 0.9,
+    metalness: 0.0,
+  });
 
-  const jacketMesh = new THREE.Mesh(jacketGeo, jacketMaterials);
-  jacketMesh.castShadow = true;
-  jacketMesh.receiveShadow = true;
-  jacketGroup.add(jacketMesh);
+  // Front Panel (+Z outside, -Z inside cavity)
+  const frontGeo = new THREE.BoxGeometry(size, size, cardboardThickness);
+  const frontMaterials = [matEdge, matEdge, matEdge, matEdge, matFront, matInside];
+  const frontPanel = new THREE.Mesh(frontGeo, frontMaterials);
+  frontPanel.position.set(0, 0, halfSpine - cardboardThickness / 2);
+  frontPanel.castShadow = true;
+  frontPanel.receiveShadow = true;
+  jacketGroup.add(frontPanel);
+
+  // Back Panel (+Z inside cavity, -Z outside)
+  const backGeo = new THREE.BoxGeometry(size, size, cardboardThickness);
+  const backMaterials = [matEdge, matEdge, matEdge, matEdge, matInside, matBack];
+  const backPanel = new THREE.Mesh(backGeo, backMaterials);
+  backPanel.position.set(0, 0, -halfSpine + cardboardThickness / 2);
+  backPanel.castShadow = true;
+  backPanel.receiveShadow = true;
+  jacketGroup.add(backPanel);
+
+  // Left Spine seam
+  const spineGeo = new THREE.BoxGeometry(cardboardThickness, size, spineWidth);
+  const spineMaterials = [matEdge, matSpine, matEdge, matEdge, matEdge, matEdge];
+  const spinePanel = new THREE.Mesh(spineGeo, spineMaterials);
+  spinePanel.position.set(-size / 2 + cardboardThickness / 2, 0, 0);
+  spinePanel.castShadow = true;
+  spinePanel.receiveShadow = true;
+  jacketGroup.add(spinePanel);
+
+  // Top Seam
+  const topGeo = new THREE.BoxGeometry(size, cardboardThickness, spineWidth);
+  const topSeam = new THREE.Mesh(topGeo, matEdge);
+  topSeam.position.set(0, size / 2 - cardboardThickness / 2, 0);
+  topSeam.receiveShadow = true;
+  jacketGroup.add(topSeam);
+
+  // Bottom Seam
+  const bottomGeo = new THREE.BoxGeometry(size, cardboardThickness, spineWidth);
+  const bottomSeam = new THREE.Mesh(bottomGeo, matEdge);
+  bottomSeam.position.set(0, -size / 2 + cardboardThickness / 2, 0);
+  bottomSeam.receiveShadow = true;
+  jacketGroup.add(bottomSeam);
+  // (Note: Right edge is left completely open as the pocket mouth!)
 
   // 3. TURNTABLE DECK GROUP
   const turntableGroup = new THREE.Group();
@@ -263,6 +303,12 @@ export function buildStudioSceneMeshes(
 
     matB.map = texSideB;
     matB.needsUpdate = true;
+
+    const hasCutout = !!newProject?.jacket?.centerCutoutHole;
+    matFront.transparent = hasCutout;
+    matFront.alphaTest = hasCutout ? 0.5 : 0;
+    matBack.transparent = hasCutout;
+    matBack.alphaTest = hasCutout ? 0.5 : 0;
 
     matFront.map = frontTex;
     matFront.needsUpdate = true;
