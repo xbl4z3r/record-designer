@@ -45,7 +45,7 @@ export function createVinylFaceTexture(
   if (!ctx) return texture;
 
   const center = 1024;
-  const radius = 1000;
+  const radius = 1020;
   const vinyl = project?.vinyl || ({} as any);
 
   ctx.save();
@@ -503,6 +503,10 @@ export function createJacketBackTexture(
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 16;
   if (!ctx) return texture;
 
   const w = 2048;
@@ -623,6 +627,10 @@ export function createJacketSpineTexture(project: ProjectData): THREE.CanvasText
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 16;
   if (!ctx) return texture;
 
   const jacket = project?.jacket || ({} as any);
@@ -660,6 +668,10 @@ export function createInnerSleeveTexture(
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 16;
   if (!ctx) return texture;
 
   const w = 2048;
@@ -769,6 +781,10 @@ export function createSlipmatTexture(mat: SlipmatStyle): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 16;
   if (!ctx) return texture;
 
   const center = 512;

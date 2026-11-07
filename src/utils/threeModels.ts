@@ -39,26 +39,22 @@ export function buildStudioSceneMeshes(
 
   const matA = new THREE.MeshPhysicalMaterial({
     map: texSideA,
-    roughness: 0.18,
-    metalness: 0.02,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.08,
+    roughness: 0.16,
+    metalness: 0.0,
+    clearcoat: 0.95,
+    clearcoatRoughness: 0.06,
     transparent: isTransparent,
-    opacity: isTransparent ? Math.max(0.4, transparencyVal) : 1.0,
-    transmission: isTransparent ? 0.65 : 0.0,
-    ior: 1.49,
+    opacity: isTransparent ? Math.max(0.35, 1 - transparencyVal * 0.65) : 1.0,
   });
 
   const matB = new THREE.MeshPhysicalMaterial({
     map: texSideB,
-    roughness: 0.18,
-    metalness: 0.02,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.08,
+    roughness: 0.16,
+    metalness: 0.0,
+    clearcoat: 0.95,
+    clearcoatRoughness: 0.06,
     transparent: isTransparent,
-    opacity: isTransparent ? Math.max(0.4, transparencyVal) : 1.0,
-    transmission: isTransparent ? 0.65 : 0.0,
-    ior: 1.49,
+    opacity: isTransparent ? Math.max(0.35, 1 - transparencyVal * 0.65) : 1.0,
   });
 
   const matRim = new THREE.MeshStandardMaterial({
@@ -393,11 +389,9 @@ export function buildStudioSceneMeshes(
     const newIsTransparent = newProject?.vinyl?.baseMaterial === 'translucent' || newProject?.vinyl?.colorStyle === 'transparent';
     const newTransVal = newProject?.vinyl?.transparency || 0.85;
     matA.transparent = newIsTransparent;
-    matA.opacity = newIsTransparent ? Math.max(0.4, newTransVal) : 1.0;
-    matA.transmission = newIsTransparent ? 0.65 : 0.0;
+    matA.opacity = newIsTransparent ? Math.max(0.35, 1 - newTransVal * 0.65) : 1.0;
     matB.transparent = newIsTransparent;
-    matB.opacity = newIsTransparent ? Math.max(0.4, newTransVal) : 1.0;
-    matB.transmission = newIsTransparent ? 0.65 : 0.0;
+    matB.opacity = newIsTransparent ? Math.max(0.35, 1 - newTransVal * 0.65) : 1.0;
 
     matRim.color.set(newProject?.vinyl?.baseColor || newProject?.vinyl?.primaryColor || '#121214');
 
