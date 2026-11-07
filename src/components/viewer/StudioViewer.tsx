@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import * as THREE from 'three';
 import { ProjectData, StudioBackground, StudioDisplayMode, SlipmatStyle } from '../../types';
-import { drawVinylRecord } from '../../utils/vinylCanvas';
 import { vinylAudio } from '../../utils/audio';
-import { TurntableDeck } from './TurntableDeck';
+import { buildVinylMesh, buildJacketMesh, buildTurntablePlayerMesh } from '../../utils/threeModels';
 import {
   Play,
   Pause,
@@ -26,8 +26,7 @@ interface StudioViewerProps {
 }
 
 export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdateProject }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
 
   // Display & Environment
   const [displayMode, setDisplayMode] = useState<StudioDisplayMode>('sleeve_and_disc');
@@ -40,47 +39,229 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const [pitch, setPitch] = useState<number>(0);
   const [audioCrackle, setAudioCrackle] = useState<boolean>(false);
   const [side, setSide] = useState<'A' | 'B'>('A');
-  const [extraction, setExtraction] = useState<number>(0.55); // 0 = inside jacket, 1 = fully out
-  const [showSheen, setShowSheen] = useState<boolean>(true);
+  const [extraction, setExtraction] = useState<number>(0.55); // 0 = inside sleeve, 1 = fully out
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
-  // 3D Camera Orbit & Zoom
-  const [rotX, setRotX] = useState<number>(14);
-  const [rotY, setRotY] = useState<number>(-16);
-  const [zoom, setZoom] = useState<number>(1.0);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const dragStartRef = useRef<{ x: number; y: number; startRotX: number; startRotY: number }>({
-    x: 0,
-    y: 0,
-    startRotX: 14,
-    startRotY: -16,
+  // Three.js internal refs
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const vinylGroupRef = useRef<THREE.Group | null>(null);
+  const jacketGroupRef = useRef<THREE.Group | null>(null);
+  const turntableGroupRef = useRef<THREE.Group | null>(null);
+  const tonearmRef = useRef<THREE.Group | null>(null);
+
+  // Orbit camera state (Spherical angles)
+  const cameraOrbit = useRef<{ theta: number; phi: number; radius: number; target: THREE.Vector3 }>({
+    theta: -0.35,
+    phi: 1.15,
+    radius: 9.8,
+    target: new THREE.Vector3(0, 0, 0),
   });
+  const isDraggingRef = useRef<boolean>(false);
+  const prevMousePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Continuous rotation angle for vinyl spinning
-  const [rotation, setRotation] = useState<number>(0);
+  // Update Camera position from spherical coords
+  const updateCameraFromOrbit = useCallback(() => {
+    if (!cameraRef.current) return;
+    const { theta, phi, radius, target } = cameraOrbit.current;
+    const sinPhi = Math.sin(phi);
+    const cosPhi = Math.cos(phi);
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
 
-  // Turntable rotation physics loop
+    cameraRef.current.position.set(
+      target.x + radius * sinPhi * sinTheta,
+      target.y + radius * cosPhi,
+      target.z + radius * sinPhi * cosTheta
+    );
+    cameraRef.current.lookAt(target);
+  }, []);
+
+  // Initialize Three.js WebGL Scene
+  useEffect(() => {
+    if (!mountRef.current) return;
+    const container = mountRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // 1. Scene
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    // 2. Camera
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    cameraRef.current = camera;
+    updateCameraFromOrbit();
+
+    // 3. Renderer with antialiasing and shadow maps
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    mountRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // 4. Lighting Rig (Key, Fill, Rim, Ambient)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    keyLight.position.set(6, 9, 7);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 1.2);
+    fillLight.position.set(-7, 4, 4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xf43f5e, 0.8);
+    rimLight.position.set(2, -3, -6);
+    scene.add(rimLight);
+
+    // Floor Contact Shadow Receiver
+    const floorGeo = new THREE.PlaneGeometry(30, 30);
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.position.y = -2.55;
+    floorMesh.receiveShadow = true;
+    scene.add(floorMesh);
+
+    // 5. Resize observer
+    const handleResize = () => {
+      if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
+      const w = mountRef.current.clientWidth;
+      const h = mountRef.current.clientHeight;
+      cameraRef.current.aspect = w / h;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w, h);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      renderer.dispose();
+      if (mountRef.current && renderer.domElement) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+    };
+  }, [updateCameraFromOrbit]);
+
+  // Rebuild 3D Meshes whenever project data changes
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    // Remove existing meshes
+    if (vinylGroupRef.current) scene.remove(vinylGroupRef.current);
+    if (jacketGroupRef.current) scene.remove(jacketGroupRef.current);
+    if (turntableGroupRef.current) scene.remove(turntableGroupRef.current);
+
+    // Build new meshes
+    const vinylMesh = buildVinylMesh(project);
+    vinylGroupRef.current = vinylMesh;
+
+    const jacketMesh = buildJacketMesh(project);
+    jacketGroupRef.current = jacketMesh;
+
+    const turntableMesh = buildTurntablePlayerMesh(project);
+    turntableGroupRef.current = turntableMesh;
+    tonearmRef.current = turntableMesh.getObjectByName('TonearmGroup') as THREE.Group;
+
+    if (displayMode === 'sleeve_and_disc') {
+      scene.add(jacketMesh);
+      scene.add(vinylMesh);
+    } else {
+      scene.add(turntableMesh);
+      scene.add(vinylMesh);
+    }
+  }, [project, displayMode]);
+
+  // Toggle visible mode
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+    if (displayMode === 'sleeve_and_disc') {
+      if (turntableGroupRef.current) scene.remove(turntableGroupRef.current);
+      if (jacketGroupRef.current) scene.add(jacketGroupRef.current);
+      if (vinylGroupRef.current) scene.add(vinylGroupRef.current);
+      cameraOrbit.current.radius = 9.8;
+      cameraOrbit.current.target.set(0, 0, 0);
+    } else {
+      if (jacketGroupRef.current) scene.remove(jacketGroupRef.current);
+      if (turntableGroupRef.current) scene.add(turntableGroupRef.current);
+      if (vinylGroupRef.current) scene.add(vinylGroupRef.current);
+      cameraOrbit.current.radius = 11.5;
+      cameraOrbit.current.target.set(0, 0, 0);
+    }
+    updateCameraFromOrbit();
+  }, [displayMode, updateCameraFromOrbit]);
+
+  // Animation render loop (Rotation, Extraction, Tonearm kinematics)
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
 
-    const loop = (currentTime: number) => {
+    const animate = (currentTime: number) => {
       const delta = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
 
-      if (isPlaying) {
-        // Adjust speed based on pitch (-8% to +8%)
+      // 1. Vinyl continuous spin
+      if (isPlaying && vinylGroupRef.current) {
         const effectiveRpm = rpm * (1 + pitch / 100);
         const radPerSec = (effectiveRpm / 60) * 2 * Math.PI;
-        setRotation((prev) => (prev + radPerSec * delta) % (Math.PI * 2));
+
+        if (displayMode === 'sleeve_and_disc') {
+          // Disc spins around its face axis (Z axis of jacket)
+          vinylGroupRef.current.rotation.y += radPerSec * delta;
+        } else {
+          // Turntable mode: disc sits flat on platter (spins around Y axis)
+          vinylGroupRef.current.rotation.y += radPerSec * delta;
+        }
       }
 
-      animId = requestAnimationFrame(loop);
+      // 2. Position Vinyl disc depending on mode
+      if (vinylGroupRef.current) {
+        if (displayMode === 'sleeve_and_disc') {
+          // Slide disc out of sleeve along X axis
+          const discX = -0.5 + extraction * 2.8;
+          vinylGroupRef.current.position.set(discX, 0, 0.05);
+
+          // Disc is upright in sleeve mode
+          vinylGroupRef.current.rotation.x = side === 'A' ? Math.PI / 2 : -Math.PI / 2;
+          vinylGroupRef.current.rotation.z = 0;
+        } else {
+          // Disc lies flat on Turntable platter (-0.8, 0.24, 0)
+          vinylGroupRef.current.position.set(-0.8, 0.25, 0);
+          vinylGroupRef.current.rotation.x = side === 'A' ? 0 : Math.PI;
+        }
+      }
+
+      // 3. Tonearm smooth pivot animation
+      if (tonearmRef.current) {
+        const targetRotY = isPlaying ? -0.22 : 0.45;
+        tonearmRef.current.rotation.y = THREE.MathUtils.lerp(tonearmRef.current.rotation.y, targetRotY, 0.08);
+      }
+
+      // 4. Render 3D Scene
+      if (rendererRef.current && sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+
+      animId = requestAnimationFrame(animate);
     };
 
-    animId = requestAnimationFrame(loop);
+    animId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animId);
-  }, [isPlaying, rpm, pitch]);
+  }, [isPlaying, rpm, pitch, displayMode, extraction, side]);
 
   // Audio crackle handling
   useEffect(() => {
@@ -94,64 +275,55 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     };
   }, [isPlaying, audioCrackle]);
 
-  // Redraw canvas in sleeve mode
-  useEffect(() => {
-    if (displayMode !== 'sleeve_and_disc') return;
-    if (!canvasRef.current) return;
-    drawVinylRecord({
-      canvas: canvasRef.current,
-      vinyl: project.vinyl,
-      side,
-      rotationRad: rotation,
-      lightAngleRad: Math.PI / 4,
-      showSheen,
-    });
-  }, [project.vinyl, side, rotation, showSheen, displayMode]);
-
-  // 3D Mouse & Touch Drag Handlers
+  // Mouse & Touch 3D Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only drag on canvas background, not controls
     if ((e.target as HTMLElement).closest('button, input, select')) return;
-    setIsDragging(true);
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      startRotX: rotX,
-      startRotY: rotY,
-    };
+    isDraggingRef.current = true;
+    prevMousePos.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isDragging) return;
-      const dx = e.clientX - dragStartRef.current.x;
-      const dy = e.clientY - dragStartRef.current.y;
-      setRotY(dragStartRef.current.startRotY + dx * 0.4);
-      setRotX(Math.max(-20, Math.min(75, dragStartRef.current.startRotX - dy * 0.4)));
-    },
-    [isDragging]
-  );
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current) return;
+    const dx = e.clientX - prevMousePos.current.x;
+    const dy = e.clientY - prevMousePos.current.y;
+    prevMousePos.current = { x: e.clientX, y: e.clientY };
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+    // Update spherical angles
+    cameraOrbit.current.theta -= dx * 0.007;
+    cameraOrbit.current.phi = Math.max(0.15, Math.min(Math.PI / 2 - 0.05, cameraOrbit.current.phi - dy * 0.007));
+    updateCameraFromOrbit();
+  };
 
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
 
-  // Wheel to Zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY * -0.001;
-    setZoom((prev) => Math.max(0.65, Math.min(1.65, prev + delta)));
+    cameraOrbit.current.radius = Math.max(4.5, Math.min(18.0, cameraOrbit.current.radius + e.deltaY * 0.008));
+    updateCameraFromOrbit();
+  };
+
+  // Camera Presets
+  const setCameraPreset = (preset: 'hero' | 'front' | 'top' | 'side') => {
+    if (preset === 'hero') {
+      cameraOrbit.current.theta = -0.35;
+      cameraOrbit.current.phi = 1.15;
+      cameraOrbit.current.radius = displayMode === 'turntable' ? 11.5 : 9.8;
+    } else if (preset === 'front') {
+      cameraOrbit.current.theta = 0;
+      cameraOrbit.current.phi = Math.PI / 2;
+      cameraOrbit.current.radius = 8.5;
+    } else if (preset === 'top') {
+      cameraOrbit.current.theta = 0;
+      cameraOrbit.current.phi = 0.2;
+      cameraOrbit.current.radius = 9.5;
+    } else if (preset === 'side') {
+      cameraOrbit.current.theta = -Math.PI / 2;
+      cameraOrbit.current.phi = 1.25;
+      cameraOrbit.current.radius = 9.0;
+    }
+    updateCameraFromOrbit();
   };
 
   const togglePlay = () => {
@@ -166,28 +338,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     setSide(side === 'A' ? 'B' : 'A');
   };
 
-  // Camera presets
-  const setCameraPreset = (preset: 'hero' | 'front' | 'top' | 'side') => {
-    if (preset === 'hero') {
-      setRotX(16);
-      setRotY(-18);
-      setZoom(1.0);
-    } else if (preset === 'front') {
-      setRotX(0);
-      setRotY(0);
-      setZoom(1.0);
-    } else if (preset === 'top') {
-      setRotX(58);
-      setRotY(0);
-      setZoom(1.05);
-    } else if (preset === 'side') {
-      setRotX(10);
-      setRotY(-48);
-      setZoom(1.0);
-    }
-  };
-
-  // Background styling mapping
+  // Background environment styles
   const getBackgroundStyles = () => {
     switch (background) {
       case 'walnut_credenza':
@@ -206,88 +357,28 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     }
   };
 
-  // High-Res Snapshot Export
+  // 3D High-Res Snapshot
   const handleExportSnapshot = () => {
+    if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
     setIsExporting(true);
     setTimeout(() => {
-      const offscreen = document.createElement('canvas');
-      offscreen.width = 1600;
-      offscreen.height = 1200;
-      const ctx = offscreen.getContext('2d');
-      if (!ctx) return;
-
-      // Draw backdrop
-      if (background === 'walnut_credenza') {
-        const bg = ctx.createLinearGradient(0, 0, 0, 1200);
-        bg.addColorStop(0, '#26170e');
-        bg.addColorStop(1, '#0a0503');
-        ctx.fillStyle = bg;
-      } else if (background === 'tokyo_neon') {
-        const bg = ctx.createLinearGradient(0, 0, 1600, 1200);
-        bg.addColorStop(0, '#050515');
-        bg.addColorStop(0.5, '#090b20');
-        bg.addColorStop(1, '#120824');
-        ctx.fillStyle = bg;
-      } else if (background === 'transparent_grid') {
-        ctx.clearRect(0, 0, 1600, 1200);
-      } else {
-        const bg = ctx.createRadialGradient(800, 500, 150, 800, 600, 900);
-        bg.addColorStop(0, '#1c1d22');
-        bg.addColorStop(1, '#090a0d');
-        ctx.fillStyle = bg;
+      rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
+      const dataUrl = rendererRef.current?.domElement.toDataURL('image/png');
+      if (dataUrl) {
+        const link = document.createElement('a');
+        link.download = `${project.jacket.albumTitle || 'vinyl'}-webgl-3d.png`;
+        link.href = dataUrl;
+        link.click();
       }
-      if (background !== 'transparent_grid') {
-        ctx.fillRect(0, 0, 1600, 1200);
-      }
-
-      // Render composite mock
-      const jacketX = 260;
-      const jacketY = 280;
-      const jacketSize = 640;
-
-      ctx.shadowColor = 'rgba(0,0,0,0.65)';
-      ctx.shadowBlur = 50;
-      ctx.shadowOffsetY = 25;
-
-      ctx.fillStyle = project.jacket.bgColor || '#18181b';
-      ctx.fillRect(jacketX, jacketY, jacketSize, jacketSize);
-      ctx.shadowColor = 'transparent';
-
-      // Artwork if present
-      ctx.fillStyle = project.jacket.accentColor || '#f43f5e';
-      ctx.fillRect(jacketX + 35, jacketY + 35, 8, 50);
-
-      ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText((project.jacket.artistName || 'ARTIST').toUpperCase(), jacketX + 55, jacketY + 55);
-
-      ctx.font = '300 36px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#f4f4f5';
-      ctx.fillText((project.jacket.albumTitle || 'ALBUM').toUpperCase(), jacketX + 55, jacketY + 95);
-
-      if (canvasRef.current) {
-        const vinylDiscSize = 620;
-        const vinylX = jacketX + jacketSize * (0.25 + extraction * 0.55);
-        const vinylY = jacketY + 10;
-        ctx.drawImage(canvasRef.current, vinylX - vinylDiscSize / 2, vinylY, vinylDiscSize, vinylDiscSize);
-      }
-
-      ctx.font = '500 13px "Geist Mono", monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillText(`3D STUDIO CAPTURE • ${project.vinyl.size.toUpperCase()} • ${project.vinyl.weight}`, 60, 1140);
-
-      const link = document.createElement('a');
-      link.download = `${project.jacket.albumTitle || 'vinyl'}-3d-capture.png`;
-      link.href = offscreen.toDataURL('image/png');
-      link.click();
       setIsExporting(false);
-    }, 150);
+    }, 100);
   };
 
   return (
     <div
-      ref={stageRef}
       onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       onWheel={handleWheel}
       className={`relative flex-1 h-full w-full ${getBackgroundStyles()} flex flex-col items-center justify-center overflow-hidden select-none cursor-grab active:cursor-grabbing transition-colors duration-500`}
     >
@@ -302,6 +393,9 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         />
       )}
 
+      {/* Real Three.js WebGL Canvas Mount */}
+      <div ref={mountRef} className="absolute inset-0 w-full h-full pointer-events-auto" />
+
       {/* Top Quick Bar: Mode Switcher & Camera Angles */}
       <div className="absolute top-4 left-4 z-40 flex flex-wrap items-center gap-2 text-xs font-mono">
         {/* Display Mode: Sleeve vs Turntable */}
@@ -315,7 +409,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-rose-500" />
-            <span>SLEEVE & DISC</span>
+            <span>3D SLEEVE & DISC</span>
           </button>
           <button
             onClick={() => setDisplayMode('turntable')}
@@ -326,7 +420,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             }`}
           >
             <Disc className="w-3.5 h-3.5 text-cyan-400" />
-            <span>TURNTABLE DECK</span>
+            <span>3D TURNTABLE</span>
           </button>
         </div>
 
@@ -380,131 +474,6 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             <option value="sunset_haze" className="bg-zinc-900 text-zinc-200">Sunset Twilight</option>
             <option value="transparent_grid" className="bg-zinc-900 text-zinc-200">Technical Grid</option>
           </select>
-        </div>
-      </div>
-
-      {/* Main 3D Stage with smooth orbit transform */}
-      <div
-        className="relative flex items-center justify-center w-full max-w-5xl h-[530px] transition-transform duration-75 ease-out"
-        style={{
-          perspective: '1400px',
-        }}
-      >
-        <div
-          className="relative flex items-center justify-center transition-transform duration-75 ease-out"
-          style={{
-            transform: `rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${zoom})`,
-            transformStyle: 'preserve-3d',
-          }}
-        >
-          {/* MODE 1: SLEEVE & DISC 3D VIEW */}
-          {displayMode === 'sleeve_and_disc' ? (
-            <>
-              {/* Outer Jacket */}
-              <div
-                className="relative z-10 w-[360px] h-[360px] rounded-[3px] shadow-[0_30px_70px_rgba(0,0,0,0.85)] border border-zinc-800/80 overflow-hidden flex flex-col justify-between p-6 transition-all duration-300"
-                style={{
-                  backgroundColor: project.jacket.bgColor || '#18181b',
-                  backgroundImage: project.jacket.frontArtwork ? `url(${project.jacket.frontArtwork})` : undefined,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
-                {/* Spine Highlight Left Edge */}
-                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
-
-                {/* Jacket Details */}
-                <div className="space-y-1 relative z-20">
-                  <div className="w-1.5 h-6 rounded-full mb-3" style={{ backgroundColor: project.jacket.accentColor || '#f43f5e' }} />
-                  <p className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
-                    {project.jacket.artistName || 'ARTIST NAME'}
-                  </p>
-                  <h2 className="text-xl font-bold tracking-tight text-zinc-100 uppercase leading-snug">
-                    {project.jacket.albumTitle || 'ALBUM TITLE'}
-                  </h2>
-                </div>
-
-                {/* Center Cutout for Disco Bag or Graphic Accent */}
-                {project.jacket.centerCutoutHole ? (
-                  <div className="self-center w-28 h-28 rounded-full border border-zinc-700 bg-zinc-950/80 shadow-inner flex items-center justify-center">
-                    <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">Aperture</span>
-                  </div>
-                ) : (
-                  <div className="self-center w-full max-w-[200px] py-4 border-y border-zinc-800/80 flex flex-col items-center justify-center space-y-1">
-                    <span className="text-[10px] font-mono text-zinc-400 tracking-wider">
-                      {project.vinyl.size.toUpperCase()} VINYL PRESSING
-                    </span>
-                    <span className="text-[9px] font-mono text-zinc-600">
-                      {project.vinyl.weight} • {project.vinyl.rpm.toUpperCase()}
-                    </span>
-                  </div>
-                )}
-
-                {/* Bottom metadata */}
-                <div className="flex items-center justify-between relative z-20 text-[10px] font-mono text-zinc-500">
-                  <span>{project.jacket.catalogNumber || 'CAT-001'}</span>
-                  <span>{project.jacket.barcode || '7 93573 19482 0'}</span>
-                </div>
-
-                {/* Obi Strip Wrap (if enabled) */}
-                {project.obi.enabled && (
-                  <div
-                    className={`absolute top-0 bottom-0 w-16 z-30 shadow-lg flex flex-col justify-between py-6 px-2 text-center border-x border-black/10 ${
-                      project.obi.position === 'left' ? 'left-6' : 'right-6'
-                    }`}
-                    style={{
-                      backgroundColor: project.obi.backgroundColor || '#f43f5e',
-                      color: project.obi.textColor || '#ffffff',
-                    }}
-                  >
-                    <div className="text-[11px] font-bold leading-tight [writing-mode:vertical-rl] mx-auto tracking-widest">
-                      {project.obi.japaneseTitle || '邦題タイトル'}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-[8px] font-mono font-bold">{project.obi.priceJpy || '¥4,180'}</div>
-                      <div className="text-[7px] font-mono opacity-80">{project.obi.releaseCode || 'JPC-8021'}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Vinyl Record Canvas */}
-              <div
-                className="absolute transition-all duration-300 ease-out"
-                style={{
-                  left: `${180 + extraction * 220}px`,
-                  zIndex: 5,
-                  filter: 'drop-shadow(0 25px 35px rgba(0, 0, 0, 0.8))',
-                }}
-              >
-                <canvas
-                  ref={canvasRef}
-                  width={720}
-                  height={720}
-                  className="w-[340px] h-[340px] rounded-full"
-                />
-              </div>
-            </>
-          ) : (
-            /* MODE 2: DEDICATED TURNTABLE DECK */
-            <TurntableDeck
-              project={project}
-              side={side}
-              isPlaying={isPlaying}
-              rpm={rpm}
-              pitch={pitch}
-              rotation={rotation}
-              showSheen={showSheen}
-              slipmat={slipmat}
-              onTogglePlay={togglePlay}
-              onSelectRpm={(newRpm) => {
-                setRpm(newRpm);
-                onUpdateProject((p) => ({ ...p, vinyl: { ...p.vinyl, rpm: newRpm === 33.33 ? '33rpm' : '45rpm' } }));
-              }}
-              onChangePitch={setPitch}
-              onChangeSlipmat={setSlipmat}
-            />
-          )}
         </div>
       </div>
 
@@ -578,22 +547,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
           <span className="hidden sm:inline">CRACKLE</span>
         </button>
 
-        {/* Sheen Toggle */}
-        <button
-          onClick={() => setShowSheen(!showSheen)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${
-            showSheen
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-              : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400'
-          }`}
-          title="Phono anisotropic sheen"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">SHEEN</span>
-        </button>
-
         {/* Extraction Slider (only in sleeve mode) */}
-        {displayMode === 'sleeve_and_disc' && (
+        {displayMode === 'sleeve_and_disc' ? (
           <>
             <div className="h-4 w-px bg-zinc-800" />
             <div className="flex items-center gap-2">
@@ -610,24 +565,45 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
               />
             </div>
           </>
+        ) : (
+          /* Pitch Slider (in Turntable mode) */
+          <>
+            <div className="h-4 w-px bg-zinc-800" />
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+              <span>PITCH:</span>
+              <input
+                type="range"
+                min="-8"
+                max="8"
+                step="0.5"
+                value={pitch}
+                onChange={(e) => setPitch(parseFloat(e.target.value))}
+                className="w-14 h-1 bg-zinc-800 rounded cursor-pointer"
+                title="Pitch (+/- 8%)"
+              />
+              <span className={pitch === 0 ? 'text-emerald-400' : 'text-zinc-300'}>
+                {pitch > 0 ? `+${pitch}%` : `${pitch}%`}
+              </span>
+            </div>
+          </>
         )}
 
         <div className="h-4 w-px bg-zinc-800" />
 
-        {/* Export High-Res Mockup Button */}
+        {/* Export 3D WebGL Snapshot Button */}
         <button
           onClick={handleExportSnapshot}
           disabled={isExporting}
           className="flex items-center gap-1.5 px-3 py-1 bg-zinc-100 hover:bg-white text-zinc-950 font-sans font-semibold rounded-full shadow transition-all active:scale-95 disabled:opacity-50"
         >
           <Camera className="w-3.5 h-3.5 text-zinc-800" />
-          <span>{isExporting ? '...' : 'CAPTURE'}</span>
+          <span>{isExporting ? '...' : '3D SNAP'}</span>
         </button>
       </div>
 
       {/* Subtle Hint Overlay */}
       <div className="absolute bottom-16 md:bottom-20 text-[10px] font-mono text-zinc-500/70 pointer-events-none">
-        Click & drag to rotate 3D view • Scroll to zoom
+        Click & drag to orbit in 3D WebGL • Scroll to zoom in/out
       </div>
     </div>
   );
