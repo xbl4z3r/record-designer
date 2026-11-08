@@ -129,6 +129,7 @@ export type InnerSleeveType =
 
 export interface InnerSleeveConfig {
   type: InnerSleeveType;
+  openingOrientation?: 'side' | 'top';
   frontArtwork: string | null;
   backArtwork: string | null;
   hasDieCutHole: boolean;

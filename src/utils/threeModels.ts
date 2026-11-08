@@ -218,15 +218,33 @@ export function buildStudioSceneMeshes(
   innerBackPanel.receiveShadow = true;
   innerSleeveGroup.add(innerBackPanel);
 
+  const innerOpening = project?.innerSleeve?.openingOrientation || 'side';
+
+  // Left seam (always sealed)
   const innerLeftGeo = new THREE.BoxGeometry(innerPolyThickness, innerSize, innerSpineWidth);
   const innerLeftSeam = new THREE.Mesh(innerLeftGeo, matInnerEdge);
   innerLeftSeam.position.set(-innerSize / 2 + innerPolyThickness / 2, 0, 0);
   innerSleeveGroup.add(innerLeftSeam);
 
+  // Bottom seam (always sealed)
   const innerBottomGeo = new THREE.BoxGeometry(innerSize, innerPolyThickness, innerSpineWidth);
   const innerBottomSeam = new THREE.Mesh(innerBottomGeo, matInnerEdge);
   innerBottomSeam.position.set(0, -innerSize / 2 + innerPolyThickness / 2, 0);
   innerSleeveGroup.add(innerBottomSeam);
+
+  if (innerOpening === 'side') {
+    // Side-opening: TOP is sealed with seam, RIGHT is the open mouth
+    const innerTopGeo = new THREE.BoxGeometry(innerSize, innerPolyThickness, innerSpineWidth);
+    const innerTopSeam = new THREE.Mesh(innerTopGeo, matInnerEdge);
+    innerTopSeam.position.set(0, innerSize / 2 - innerPolyThickness / 2, 0);
+    innerSleeveGroup.add(innerTopSeam);
+  } else {
+    // Top-opening: RIGHT is sealed with seam, TOP is the open mouth
+    const innerRightGeo = new THREE.BoxGeometry(innerPolyThickness, innerSize, innerSpineWidth);
+    const innerRightSeam = new THREE.Mesh(innerRightGeo, matInnerEdge);
+    innerRightSeam.position.set(innerSize / 2 - innerPolyThickness / 2, 0, 0);
+    innerSleeveGroup.add(innerRightSeam);
+  }
 
   // 4. TURNTABLE DECK GROUP
   const turntableGroup = new THREE.Group();

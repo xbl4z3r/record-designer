@@ -250,12 +250,22 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         meshes.innerSleeveGroup.visible = true;
         meshes.vinylGroup.visible = true;
 
-        meshes.innerSleeveGroup.position.set(-0.9, 0, 0);
-        meshes.innerSleeveGroup.rotation.set(0, 0, 0);
+        const isTopOpening = project?.innerSleeve?.openingOrientation === 'top';
+        if (isTopOpening) {
+          meshes.innerSleeveGroup.position.set(0, -0.6, 0);
+          meshes.innerSleeveGroup.rotation.set(0, 0, 0);
 
-        // Disc slides in and out of the anti-static inner sleeve
-        const discX = -0.9 + currentExtraction * 3.0;
-        meshes.vinylGroup.position.set(discX, 0, 0);
+          // Disc slides UPWARDS out of the top opening mouth!
+          const discY = -0.6 + currentExtraction * 3.2;
+          meshes.vinylGroup.position.set(0, discY, 0);
+        } else {
+          meshes.innerSleeveGroup.position.set(-0.9, 0, 0);
+          meshes.innerSleeveGroup.rotation.set(0, 0, 0);
+
+          // Disc slides rightwards out of the side opening mouth!
+          const discX = -0.9 + currentExtraction * 3.0;
+          meshes.vinylGroup.position.set(discX, 0, 0);
+        }
 
         meshes.vinylGroup.rotation.set(currentSide === 'A' ? Math.PI / 2 : -Math.PI / 2, 0, 0);
       } else if (currentMode === 'jacket_solo') {

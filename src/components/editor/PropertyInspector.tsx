@@ -821,6 +821,34 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
               </select>
             </div>
 
+            <div>
+              <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Sleeve Opening Orientation</label>
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => updateInner({ openingOrientation: 'side' })}
+                  className={`py-1.5 px-2 rounded border text-center transition-colors ${
+                    (project.innerSleeve.openingOrientation || 'side') === 'side'
+                      ? 'bg-zinc-800 text-white font-bold border-rose-500'
+                      : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                  }`}
+                >
+                  Side Opening (Sealed Top)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateInner({ openingOrientation: 'top' })}
+                  className={`py-1.5 px-2 rounded border text-center transition-colors ${
+                    project.innerSleeve.openingOrientation === 'top'
+                      ? 'bg-zinc-800 text-white font-bold border-rose-500'
+                      : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                  }`}
+                >
+                  Top Opening (Sealed Side)
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-mono text-zinc-500 block mb-1 uppercase">Corner Style</label>
