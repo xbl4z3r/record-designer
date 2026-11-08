@@ -64,6 +64,7 @@ export function buildStudioSceneMeshes(
   });
 
   const discGeometry = new THREE.CylinderGeometry(radius, radius, thickness, 64, 1);
+  discGeometry.rotateY(Math.PI / 2); // Correct orientation so label is perfectly upright
   const discMesh = new THREE.Mesh(discGeometry, [matRim, matA, matB]);
   discMesh.castShadow = true;
   discMesh.receiveShadow = true;

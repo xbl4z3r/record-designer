@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ProjectData, StudioBackground, StudioDisplayMode, SlipmatStyle } from '../../types';
 import { vinylAudio } from '../../utils/audio';
 import { buildStudioSceneMeshes, BuiltStudioMeshes } from '../../utils/threeModels';
@@ -66,36 +67,11 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const meshesRef = useRef<BuiltStudioMeshes | null>(null);
   const rimLightRef = useRef<THREE.DirectionalLight | null>(null);
 
-  // Camera Orbit state (Default comfortable framing)
-  const cameraOrbit = useRef<{ theta: number; phi: number; radius: number; target: THREE.Vector3 }>({
-    theta: -0.32,
-    phi: 1.18,
-    radius: 13.5,
-    target: new THREE.Vector3(0, 0, 0),
-  });
-  const isDraggingRef = useRef(false);
-  const prevMousePos = useRef({ x: 0, y: 0 });
-
-  const updateCameraPosition = useCallback(() => {
-    if (!cameraRef.current) return;
-    const { theta, phi, radius, target } = cameraOrbit.current;
-    const sinPhi = Math.sin(phi);
-    const cosPhi = Math.cos(phi);
-    const sinTheta = Math.sin(theta);
-    const cosTheta = Math.cos(theta);
-
-    cameraRef.current.position.set(
-      target.x + radius * sinPhi * sinTheta,
-      target.y + radius * cosPhi,
-      target.z + radius * sinPhi * cosTheta
-    );
-    cameraRef.current.lookAt(target);
-  }, []);
-
-  // 1. Single Unified Three.js WebGL Setup with 16x Anisotropic Hardware Filtering & Studio HDR
+  // 1. Single Unified Three.js WebGL Setup with OrbitControls, 16x Anisotropic Filtering & Studio HDR
   useEffect(() => {
     if (!mountRef.current) return;
     const container = mountRef.current;
@@ -109,8 +85,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
     // Create Camera with generous perspective
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    camera.position.set(-3.8, 5.0, 13.5);
     cameraRef.current = camera;
-    updateCameraPosition();
 
     // Create WebGL Renderer with full native pixel density
     const renderer = new THREE.WebGLRenderer({
@@ -133,7 +109,20 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Studio Softbox Reflection Environment (gives lacquer vinyl deep reflections without bleaching)
+    // OrbitControls for Full 360° Free Rotation & Panning/Moving
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    controls.minDistance = 3.0;
+    controls.maxDistance = 40.0;
+    controls.minPolarAngle = 0.02;
+    controls.maxPolarAngle = Math.PI - 0.02; // Full freedom to orbit from all angles above and below!
+    controls.target.set(0, 0, 0);
+    controlsRef.current = controls;
+
+    // Studio Softbox Reflection Environment
     const studioEnv = createStudioEnvironment(renderer);
     scene.environment = studioEnv;
 
@@ -167,7 +156,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
-    // Build 3D Meshes with 16x Anisotropic Hardware Textures
+    // Build 3D Meshes with 16x Anisotropic Hardware Textures & Upright Orientation
     const meshes = buildStudioSceneMeshes(project, slipmat);
     meshesRef.current = meshes;
 
@@ -203,6 +192,9 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       const spinning = isPlayingRef.current;
       const currentRpm = rpmRef.current;
       const currentPitch = pitchRef.current;
+
+      // Update Controls inertia
+      controls.update();
 
       // Update Rim Light Sheen
       if (rimLightRef.current) {
@@ -321,6 +313,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     return () => {
       cancelAnimationFrame(animId);
       resizeObserver.disconnect();
+      controls.dispose();
       renderer.dispose();
       studioEnv.dispose();
       while (container.firstChild) {
@@ -339,24 +332,22 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
   // 3. Camera adjustments on mode switch
   useEffect(() => {
-    if (displayMode === 'sleeve_and_disc') {
-      cameraOrbit.current.radius = 13.5;
-      cameraOrbit.current.target.set(0, 0, 0);
-    } else if (displayMode === 'inner_and_disc') {
-      cameraOrbit.current.radius = 11.0;
-      cameraOrbit.current.target.set(0, 0, 0);
-    } else if (displayMode === 'jacket_solo') {
-      cameraOrbit.current.radius = 10.5;
-      cameraOrbit.current.target.set(0, 0, 0);
-    } else if (displayMode === 'vinyl_solo') {
-      cameraOrbit.current.radius = 9.8;
-      cameraOrbit.current.target.set(0, 0, 0);
-    } else {
-      cameraOrbit.current.radius = 14.5;
-      cameraOrbit.current.target.set(0, 0, 0);
-    }
-    updateCameraPosition();
-  }, [displayMode, updateCameraPosition]);
+    if (!controlsRef.current || !cameraRef.current) return;
+    controlsRef.current.target.set(0, 0, 0);
+    const baseRadius =
+      displayMode === 'turntable'
+        ? 14.5
+        : displayMode === 'vinyl_solo'
+        ? 9.8
+        : displayMode === 'jacket_solo'
+        ? 10.5
+        : displayMode === 'inner_and_disc'
+        ? 11.0
+        : 13.5;
+
+    cameraRef.current.position.set(-3.8, 5.0, baseRadius * 0.9);
+    controlsRef.current.update();
+  }, [displayMode]);
 
   // Audio crackle handling
   useEffect(() => {
@@ -370,42 +361,9 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     };
   }, [isPlaying, audioCrackle]);
 
-  // Orbit Mouse & Touch Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button, input, select')) return;
-    isDraggingRef.current = true;
-    prevMousePos.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - prevMousePos.current.x;
-    const dy = e.clientY - prevMousePos.current.y;
-    prevMousePos.current = { x: e.clientX, y: e.clientY };
-
-    cameraOrbit.current.theta -= dx * 0.007;
-    cameraOrbit.current.phi = Math.max(
-      0.15,
-      Math.min(Math.PI / 2 - 0.05, cameraOrbit.current.phi - dy * 0.007)
-    );
-    updateCameraPosition();
-  };
-
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    cameraOrbit.current.radius = Math.max(
-      5.5,
-      Math.min(26.0, cameraOrbit.current.radius + e.deltaY * 0.008)
-    );
-    updateCameraPosition();
-  };
-
   // Camera Presets
   const setCameraPreset = (preset: 'hero' | 'front' | 'top' | 'side') => {
+    if (!controlsRef.current || !cameraRef.current) return;
     const baseRadius =
       displayMode === 'turntable'
         ? 14.5
@@ -417,24 +375,18 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         ? 11.0
         : 13.5;
 
+    controlsRef.current.target.set(0, 0, 0);
+
     if (preset === 'hero') {
-      cameraOrbit.current.theta = -0.32;
-      cameraOrbit.current.phi = 1.18;
-      cameraOrbit.current.radius = baseRadius;
+      cameraRef.current.position.set(-3.8, 5.0, baseRadius * 0.9);
     } else if (preset === 'front') {
-      cameraOrbit.current.theta = 0;
-      cameraOrbit.current.phi = Math.PI / 2 - 0.02;
-      cameraOrbit.current.radius = baseRadius * 0.92;
+      cameraRef.current.position.set(0, 0, baseRadius * 0.88);
     } else if (preset === 'top') {
-      cameraOrbit.current.theta = 0;
-      cameraOrbit.current.phi = 0.22;
-      cameraOrbit.current.radius = baseRadius * 1.05;
+      cameraRef.current.position.set(0, baseRadius * 0.98, 0.4);
     } else if (preset === 'side') {
-      cameraOrbit.current.theta = -Math.PI / 2;
-      cameraOrbit.current.phi = 1.25;
-      cameraOrbit.current.radius = baseRadius * 0.95;
+      cameraRef.current.position.set(-baseRadius * 0.95, 1.0, 0.5);
     }
-    updateCameraPosition();
+    controlsRef.current.update();
   };
 
   const togglePlay = () => {
@@ -487,11 +439,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
   return (
     <div
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
-      className={`relative flex-1 h-full w-full ${getBackgroundStyles()} flex flex-col items-center justify-center overflow-hidden select-none cursor-grab active:cursor-grabbing transition-colors duration-500`}
+      className={`relative flex-1 h-full w-full ${getBackgroundStyles()} flex flex-col items-center justify-center overflow-hidden select-none transition-colors duration-500`}
     >
       {/* Background Lighting Pattern / Studio Grid */}
       {background === 'transparent_grid' && (
@@ -505,7 +453,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
       )}
 
       {/* Real Three.js WebGL Canvas Mount */}
-      <div ref={mountRef} className="absolute inset-0 w-full h-full pointer-events-auto" />
+      <div ref={mountRef} className="absolute inset-0 w-full h-full pointer-events-auto cursor-grab active:cursor-grabbing" />
 
       {/* Top Quick Bar: Mode Switcher & Camera Angles */}
       <div className="absolute top-4 left-4 z-40 flex flex-wrap items-center gap-2 text-xs font-mono">
@@ -822,7 +770,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
       {/* Subtle Hint Overlay */}
       <div className="absolute bottom-16 md:bottom-20 text-[10px] font-mono text-zinc-500/80 pointer-events-none">
-        Click & drag to orbit in 3D WebGL • Scroll to zoom
+        Left-click drag to orbit • Right-click drag to move/pan • Scroll to zoom
       </div>
     </div>
   );
