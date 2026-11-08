@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import { ProjectData, SlipmatStyle, StudioResolution } from '../types';
-import { renderPhotorealisticSplatter } from './splatterGenerator';
+import {
+  renderPhotorealisticSplatter,
+  renderPhotorealisticGalaxySwirl,
+} from './splatterGenerator';
 
-export { renderPhotorealisticSplatter, renderPhotorealisticSplatter as drawOrganicSplatter };
+export {
+  renderPhotorealisticSplatter,
+  renderPhotorealisticSplatter as drawOrganicSplatter,
+  renderPhotorealisticGalaxySwirl,
+};
 
 export function getTextureDimension(res: StudioResolution = '4k'): number {
   if (res === 'hd') return 1024;
@@ -116,23 +123,7 @@ export function createVinylFaceTexture(
     ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
     ctx.fill();
   } else if (finish === 'galaxy_swirl' || finish === 'marble' || vinyl.colorStyle === 'marble') {
-    ctx.save();
-    ctx.clip();
-    ctx.strokeStyle = secondaryColor;
-    ctx.lineWidth = radius * 0.08;
-    ctx.globalAlpha = 0.55;
-
-    for (let i = 0; i < 11; i++) {
-      ctx.beginPath();
-      const a = (i * Math.PI) / 5.5;
-      const x1 = Math.cos(a) * radius * 0.3;
-      const y1 = Math.sin(a) * radius * 0.3;
-      const x2 = Math.cos(a + 1.25) * radius * 0.9;
-      const y2 = Math.sin(a + 1.25) * radius * 0.9;
-      ctx.bezierCurveTo(x1, y1, -y1, x1, x2, y2);
-      ctx.stroke();
-    }
-    ctx.restore();
+    renderPhotorealisticGalaxySwirl(ctx, radius, vinyl);
   } else if (finish === 'splatter' || vinyl.colorStyle === 'splatter') {
     // Photorealistic pressing-plant splatter
     renderPhotorealisticSplatter(ctx, radius, vinyl);

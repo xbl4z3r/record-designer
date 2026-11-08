@@ -1,5 +1,8 @@
 import { VinylConfig, CenterLabelConfig } from '../types';
-import { renderPhotorealisticSplatter } from './splatterGenerator';
+import {
+  renderPhotorealisticSplatter,
+  renderPhotorealisticGalaxySwirl,
+} from './splatterGenerator';
 
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -125,29 +128,11 @@ function drawVinylBaseDisc(ctx: CanvasRenderingContext2D, radius: number, vinyl:
     ctx.beginPath();
     ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
     ctx.fill();
-  } else if (vinyl.colorStyle === 'marble') {
+  } else if (vinyl.colorStyle === 'marble' || vinyl.finishEffect === 'galaxy_swirl') {
     // Base color
     ctx.fillStyle = primaryColor;
     ctx.fill();
-
-    // Swirl pattern
-    ctx.save();
-    ctx.clip();
-    ctx.strokeStyle = secondaryColor;
-    ctx.lineWidth = radius * 0.08;
-    ctx.globalAlpha = 0.55;
-
-    for (let i = 0; i < 9; i++) {
-      ctx.beginPath();
-      const a = (i * Math.PI) / 4.5;
-      const x1 = Math.cos(a) * radius * 0.3;
-      const y1 = Math.sin(a) * radius * 0.3;
-      const x2 = Math.cos(a + 1.2) * radius * 0.9;
-      const y2 = Math.sin(a + 1.2) * radius * 0.9;
-      ctx.bezierCurveTo(x1, y1, -y1, x1, x2, y2);
-      ctx.stroke();
-    }
-    ctx.restore();
+    renderPhotorealisticGalaxySwirl(ctx, radius, vinyl);
   } else if (vinyl.colorStyle === 'tri_color_split') {
     const colors = [primaryColor, secondaryColor, splatterColor];
     for (let i = 0; i < 3; i++) {
