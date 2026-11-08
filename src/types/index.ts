@@ -178,6 +178,12 @@ export type ActiveDiecutComponent =
   | 'obi_strip';
 
 export type StudioBackground =
+  | 'sunlit_living_room'
+  | 'record_shop'
+  | 'listening_room_night'
+  | 'window_backlight'
+  | 'studio_gels'
+  | 'dark_minimal'
   | 'dark_studio'
   | 'walnut_credenza'
   | 'tokyo_neon'

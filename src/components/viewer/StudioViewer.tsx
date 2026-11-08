@@ -5,6 +5,7 @@ import { ProjectData, StudioBackground, StudioDisplayMode, SlipmatStyle, StudioR
 import { vinylAudio } from '../../utils/audio';
 import { buildStudioSceneMeshes, BuiltStudioMeshes } from '../../utils/threeModels';
 import { createStudioEnvironment } from '../../utils/studioEnvironment';
+import { buildEnvironmentSet, BuiltEnvironment } from '../../utils/environmentBuilder';
 import {
   Play,
   Pause,
@@ -32,7 +33,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
 
   // Display & Environment
   const [displayMode, setDisplayMode] = useState<StudioDisplayMode>('sleeve_and_disc');
-  const [background, setBackground] = useState<StudioBackground>('dark_studio');
+  const [background, setBackground] = useState<StudioBackground>('sunlit_living_room');
   const [slipmat, setSlipmat] = useState<SlipmatStyle>('felt_black');
   const [resolution, setResolution] = useState<StudioResolution>('4k');
 
@@ -71,6 +72,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const meshesRef = useRef<BuiltStudioMeshes | null>(null);
+  const envSetRef = useRef<BuiltEnvironment | null>(null);
   const rimLightRef = useRef<THREE.DirectionalLight | null>(null);
 
   // 1. Single Unified Three.js WebGL Setup with OrbitControls, 16x Anisotropic Filtering & Studio HDR
@@ -132,22 +134,19 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.3);
-    keyLight.position.set(6, 10, 8);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.bias = -0.0003;
-    scene.add(keyLight);
-
-    const fillLight = new THREE.DirectionalLight(0xa5b4fc, 0.65);
-    fillLight.position.set(-8, 5, 5);
-    scene.add(fillLight);
-
     const rimLight = new THREE.DirectionalLight(0xf43f5e, 0.65);
     rimLight.position.set(2, -2, -6);
     scene.add(rimLight);
     rimLightRef.current = rimLight;
+
+    // Build 3D Life-like Architectural Environment Set (§14)
+    const env = buildEnvironmentSet(background);
+    envSetRef.current = env;
+    scene.add(env.group);
+    scene.add(env.keyLight);
+    scene.add(env.fillLight);
+    if (env.backLight) scene.add(env.backLight);
+    if (env.practicalLight) scene.add(env.practicalLight);
 
     // Soft Shadow Receiving Floor
     const floorGeo = new THREE.PlaneGeometry(30, 30);
@@ -351,6 +350,28 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     }
   }, [project, slipmat, resolution]);
 
+  // 2.5. Update 3D Architectural Set & Lighting on environment preset switch
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    if (envSetRef.current) {
+      scene.remove(envSetRef.current.group);
+      scene.remove(envSetRef.current.keyLight);
+      scene.remove(envSetRef.current.fillLight);
+      if (envSetRef.current.backLight) scene.remove(envSetRef.current.backLight);
+      if (envSetRef.current.practicalLight) scene.remove(envSetRef.current.practicalLight);
+    }
+
+    const env = buildEnvironmentSet(background);
+    envSetRef.current = env;
+    scene.add(env.group);
+    scene.add(env.keyLight);
+    scene.add(env.fillLight);
+    if (env.backLight) scene.add(env.backLight);
+    if (env.practicalLight) scene.add(env.practicalLight);
+  }, [background]);
+
   // 3. Camera adjustments on mode switch
   useEffect(() => {
     if (!controlsRef.current || !cameraRef.current) return;
@@ -425,16 +446,22 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   // Background environment styles
   const getBackgroundStyles = () => {
     switch (background) {
+      case 'sunlit_living_room':
+      case 'window_backlight':
+        return 'bg-gradient-to-b from-[#1e293b] via-[#0f172a] to-[#020617]';
+      case 'record_shop':
+        return 'bg-gradient-to-b from-[#271912] via-[#1c120c] to-[#0a0604]';
+      case 'listening_room_night':
+        return 'bg-gradient-to-b from-[#090d16] via-[#0c1220] to-[#030712]';
+      case 'studio_gels':
+        return 'bg-gradient-to-tr from-[#1e1035] via-[#0f172a] to-[#062436]';
       case 'walnut_credenza':
         return 'bg-gradient-to-b from-[#26170e] via-[#1a0f08] to-[#0a0503]';
       case 'tokyo_neon':
         return 'bg-gradient-to-tr from-[#050515] via-[#090b20] to-[#120824]';
-      case 'bauhaus_concrete':
-        return 'bg-gradient-to-br from-[#27272a] via-[#18181b] to-[#0f0f11]';
-      case 'sunset_haze':
-        return 'bg-gradient-to-b from-[#2e1065] via-[#1e1b4b] to-[#09090b]';
       case 'transparent_grid':
         return 'bg-zinc-950';
+      case 'dark_minimal':
       case 'dark_studio':
       default:
         return 'bg-[radial-gradient(ellipse_80%_60%_at_50%_35%,rgba(39,39,42,0.6),rgba(9,9,11,0.98))]';
@@ -580,12 +607,12 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             onChange={(e) => setBackground(e.target.value as StudioBackground)}
             className="bg-transparent text-zinc-300 text-[11px] font-mono outline-none pr-2 py-1 cursor-pointer"
           >
-            <option value="dark_studio" className="bg-zinc-900 text-zinc-200">Dark Studio</option>
-            <option value="walnut_credenza" className="bg-zinc-900 text-zinc-200">Walnut Credenza</option>
-            <option value="tokyo_neon" className="bg-zinc-900 text-zinc-200">Tokyo Neon</option>
-            <option value="bauhaus_concrete" className="bg-zinc-900 text-zinc-200">Bauhaus Gallery</option>
-            <option value="sunset_haze" className="bg-zinc-900 text-zinc-200">Sunset Twilight</option>
-            <option value="transparent_grid" className="bg-zinc-900 text-zinc-200">Technical Grid</option>
+            <option value="sunlit_living_room" className="bg-zinc-900 text-zinc-200">Sunlit Living Room (Window & Plants)</option>
+            <option value="listening_room_night" className="bg-zinc-900 text-zinc-200">Listening Den at Night (Warm Lamp)</option>
+            <option value="window_backlight" className="bg-zinc-900 text-zinc-200">Daylight Window Backlight</option>
+            <option value="record_shop" className="bg-zinc-900 text-zinc-200">Record Shop Crates</option>
+            <option value="studio_gels" className="bg-zinc-900 text-zinc-200">Studio Color Gels (Refraction Test)</option>
+            <option value="dark_minimal" className="bg-zinc-900 text-zinc-200">Minimal Dark Studio</option>
           </select>
         </div>
 
