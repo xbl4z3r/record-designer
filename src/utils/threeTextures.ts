@@ -218,6 +218,34 @@ export function createVinylFaceTexture(
     }
   }
 
+  // 3.5. Reflective Diffraction Grating Rainbow Bands (spec §4.3)
+  ctx.save();
+  const diffGrad = ctx.createConicGradient(Math.PI / 4, 0, 0);
+  diffGrad.addColorStop(0.00, 'rgba(236, 72, 153, 0.0)');
+  diffGrad.addColorStop(0.07, 'rgba(236, 72, 153, 0.12)'); // violet
+  diffGrad.addColorStop(0.11, 'rgba(59, 130, 246, 0.14)');  // blue
+  diffGrad.addColorStop(0.15, 'rgba(34, 197, 94, 0.14)');   // green
+  diffGrad.addColorStop(0.19, 'rgba(234, 179, 8, 0.12)');   // yellow
+  diffGrad.addColorStop(0.23, 'rgba(239, 68, 68, 0.10)');   // red
+  diffGrad.addColorStop(0.30, 'rgba(236, 72, 153, 0.0)');
+
+  diffGrad.addColorStop(0.50, 'rgba(236, 72, 153, 0.0)');
+  diffGrad.addColorStop(0.57, 'rgba(236, 72, 153, 0.12)');
+  diffGrad.addColorStop(0.61, 'rgba(59, 130, 246, 0.14)');
+  diffGrad.addColorStop(0.65, 'rgba(34, 197, 94, 0.14)');
+  diffGrad.addColorStop(0.69, 'rgba(234, 179, 8, 0.12)');
+  diffGrad.addColorStop(0.73, 'rgba(239, 68, 68, 0.10)');
+  diffGrad.addColorStop(0.80, 'rgba(236, 72, 153, 0.0)');
+  diffGrad.addColorStop(1.00, 'rgba(236, 72, 153, 0.0)');
+
+  ctx.beginPath();
+  ctx.arc(0, 0, musicOuterRadius, 0, Math.PI * 2);
+  ctx.arc(0, 0, deadWaxRadius, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.fillStyle = diffGrad;
+  ctx.fill();
+  ctx.restore();
+
   // 4. Dead wax & Matrix Stamped Text
   const matrixText = side === 'A' ? (vinyl.matrixTextSideA || 'SIDE A') : (vinyl.matrixTextSideB || 'SIDE B');
   const textRadius = (labelRadius + deadWaxRadius) / 2 + 14;

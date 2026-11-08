@@ -466,6 +466,19 @@ function drawAnisotropicSheen(
     ctx.fillStyle = grad;
     ctx.fill();
 
+    // Diffractive rainbow sheen across the groove fan (spec §4.3)
+    const rainbowGrad = ctx.createLinearGradient(0, -fanHalfAngle * outerRadius, 0, fanHalfAngle * outerRadius);
+    rainbowGrad.addColorStop(0.0, 'rgba(236, 72, 153, 0.0)');
+    rainbowGrad.addColorStop(0.2, 'rgba(236, 72, 153, 0.08)'); // violet
+    rainbowGrad.addColorStop(0.4, 'rgba(59, 130, 246, 0.09)');  // blue
+    rainbowGrad.addColorStop(0.5, 'rgba(34, 197, 94, 0.09)');   // green
+    rainbowGrad.addColorStop(0.7, 'rgba(234, 179, 8, 0.08)');   // yellow
+    rainbowGrad.addColorStop(0.9, 'rgba(239, 68, 68, 0.06)');   // red
+    rainbowGrad.addColorStop(1.0, 'rgba(236, 72, 153, 0.0)');
+
+    ctx.fillStyle = rainbowGrad;
+    ctx.fill();
+
     ctx.restore();
   });
 
