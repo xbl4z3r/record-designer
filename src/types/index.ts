@@ -190,6 +190,9 @@ export type StudioDisplayMode =
   | 'vinyl_solo'
   | 'jacket_solo'
   | 'turntable';
+
+export type StudioResolution = '4k' | '2k' | 'hd';
+
 export type SlipmatStyle = 'cork' | 'felt_black' | 'geometric' | 'rubber';
 
 export interface StudioViewState {

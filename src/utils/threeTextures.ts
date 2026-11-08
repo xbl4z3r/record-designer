@@ -1,8 +1,20 @@
 import * as THREE from 'three';
-import { ProjectData, SlipmatStyle } from '../types';
+import { ProjectData, SlipmatStyle, StudioResolution } from '../types';
 import { renderPhotorealisticSplatter } from './splatterGenerator';
 
 export { renderPhotorealisticSplatter, renderPhotorealisticSplatter as drawOrganicSplatter };
+
+export function getTextureDimension(res: StudioResolution = '4k'): number {
+  if (res === 'hd') return 1024;
+  if (res === '2k') return 1536;
+  return 2048;
+}
+
+export function getAnisotropyLevel(res: StudioResolution = '4k'): number {
+  if (res === 'hd') return 4;
+  if (res === '2k') return 8;
+  return 16;
+}
 
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -23,16 +35,18 @@ function getOrLoadImage(src: string, onLoaded?: () => void): HTMLImageElement {
 }
 
 /**
- * Generates ultra high-res (2048x2048) canvas texture for vinyl face (Side A or Side B)
+ * Generates configurable resolution canvas texture for vinyl face (Side A or Side B)
  */
 export function createVinylFaceTexture(
   project: ProjectData,
   side: 'A' | 'B',
-  onTextureUpdated?: () => void
+  onTextureUpdated?: () => void,
+  res: StudioResolution = '4k'
 ): THREE.CanvasTexture {
+  const dim = getTextureDimension(res);
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 2048;
+  canvas.width = dim;
+  canvas.height = dim;
   const ctx = canvas.getContext('2d');
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -40,12 +54,12 @@ export function createVinylFaceTexture(
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 16;
+  texture.anisotropy = getAnisotropyLevel(res);
 
   if (!ctx) return texture;
 
-  const center = 1024;
-  const radius = 1020;
+  const center = dim / 2;
+  const radius = center - 4;
   const vinyl = project?.vinyl || ({} as any);
 
   ctx.save();
@@ -373,18 +387,23 @@ export function createVinylBumpTexture(): THREE.CanvasTexture {
  */
 export function createJacketFrontTexture(
   project: ProjectData,
-  onTextureUpdated?: () => void
+  onTextureUpdated?: () => void,
+  res: StudioResolution = '4k'
 ): THREE.CanvasTexture {
+  const w = getTextureDimension(res);
+  const h = w;
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 2048;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = getAnisotropyLevel(res);
   if (!ctx) return texture;
 
-  const w = 2048;
-  const h = 2048;
   const jacket = project?.jacket || ({} as any);
 
   ctx.fillStyle = jacket.bgColor || '#18181b';
@@ -495,22 +514,23 @@ export function createJacketFrontTexture(
  */
 export function createJacketBackTexture(
   project: ProjectData,
-  onTextureUpdated?: () => void
+  onTextureUpdated?: () => void,
+  res: StudioResolution = '4k'
 ): THREE.CanvasTexture {
+  const w = getTextureDimension(res);
+  const h = w;
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 2048;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 16;
+  texture.anisotropy = getAnisotropyLevel(res);
   if (!ctx) return texture;
 
-  const w = 2048;
-  const h = 2048;
   const jacket = project?.jacket || ({} as any);
 
   ctx.fillStyle = jacket.bgColor || '#18181b';
@@ -620,28 +640,34 @@ export function createJacketBackTexture(
 /**
  * Creates texture for Jacket Spine
  */
-export function createJacketSpineTexture(project: ProjectData): THREE.CanvasTexture {
+export function createJacketSpineTexture(
+  project: ProjectData,
+  res: StudioResolution = '4k'
+): THREE.CanvasTexture {
+  const h = getTextureDimension(res);
+  const w = Math.round(h * 0.0625);
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 2048;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 16;
+  texture.anisotropy = getAnisotropyLevel(res);
   if (!ctx) return texture;
 
   const jacket = project?.jacket || ({} as any);
   ctx.fillStyle = jacket.bgColor || '#18181b';
-  ctx.fillRect(0, 0, 128, 2048);
+  ctx.fillRect(0, 0, w, h);
 
   ctx.save();
-  ctx.translate(64, 1024);
+  ctx.translate(w / 2, h / 2);
   ctx.rotate(-Math.PI / 2);
 
-  ctx.font = '600 36px "Geist Mono", monospace';
+  const fontSize = Math.max(14, Math.round(h * 0.018));
+  ctx.font = `600 ${fontSize}px "Geist Mono", monospace`;
   ctx.fillStyle = '#f4f4f5';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -660,22 +686,22 @@ export function createJacketSpineTexture(project: ProjectData): THREE.CanvasText
 export function createInnerSleeveTexture(
   project: ProjectData,
   side: 'front' | 'back',
-  onTextureUpdated?: () => void
+  onTextureUpdated?: () => void,
+  res: StudioResolution = '4k'
 ): THREE.CanvasTexture {
+  const w = getTextureDimension(res);
+  const h = w;
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 2048;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 16;
+  texture.anisotropy = getAnisotropyLevel(res);
   if (!ctx) return texture;
-
-  const w = 2048;
-  const h = 2048;
   const inner = project?.innerSleeve || ({} as any);
   const type = inner.type || 'anti_static_rice_paper';
   const customArt = side === 'front' ? inner.frontArtwork : (inner.backArtwork || inner.frontArtwork);
@@ -774,21 +800,25 @@ export function createInnerSleeveTexture(
 /**
  * Creates slipmat texture for Turntable platter
  */
-export function createSlipmatTexture(mat: SlipmatStyle): THREE.CanvasTexture {
+export function createSlipmatTexture(
+  mat: SlipmatStyle,
+  res: StudioResolution = '4k'
+): THREE.CanvasTexture {
+  const dim = Math.round(getTextureDimension(res) * 0.5);
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = dim;
+  canvas.height = dim;
   const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 16;
+  texture.anisotropy = getAnisotropyLevel(res);
   if (!ctx) return texture;
 
-  const center = 512;
-  const radius = 490;
+  const center = dim / 2;
+  const radius = center - 10;
 
   if (mat === 'cork') {
     ctx.fillStyle = '#92400e';

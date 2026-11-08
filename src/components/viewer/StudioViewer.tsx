@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ProjectData, StudioBackground, StudioDisplayMode, SlipmatStyle } from '../../types';
+import { ProjectData, StudioBackground, StudioDisplayMode, SlipmatStyle, StudioResolution } from '../../types';
 import { vinylAudio } from '../../utils/audio';
 import { buildStudioSceneMeshes, BuiltStudioMeshes } from '../../utils/threeModels';
 import { createStudioEnvironment } from '../../utils/studioEnvironment';
@@ -19,6 +19,7 @@ import {
   Palette,
   ShieldCheck,
   Package,
+  Sliders,
 } from 'lucide-react';
 
 interface StudioViewerProps {
@@ -33,6 +34,7 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
   const [displayMode, setDisplayMode] = useState<StudioDisplayMode>('sleeve_and_disc');
   const [background, setBackground] = useState<StudioBackground>('dark_studio');
   const [slipmat, setSlipmat] = useState<SlipmatStyle>('felt_black');
+  const [resolution, setResolution] = useState<StudioResolution>('4k');
 
   // Playback & Audio
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -156,8 +158,8 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
-    // Build 3D Meshes with 16x Anisotropic Hardware Textures & Upright Orientation
-    const meshes = buildStudioSceneMeshes(project, slipmat);
+    // Build 3D Meshes with Anisotropic Hardware Textures & Upright Orientation
+    const meshes = buildStudioSceneMeshes(project, slipmat, undefined, resolution);
     meshesRef.current = meshes;
 
     scene.add(meshes.jacketGroup);
@@ -290,12 +292,21 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
         meshes.vinylGroup.rotation.set(currentSide === 'A' ? 0 : Math.PI, 0, 0);
       }
 
-      // 3. Tonearm pivot animation
+      // 3. Tonearm pivot & needle drop kinematics
       if (meshes.tonearmGroup) {
-        const targetArmAngle = spinning ? -0.22 : 0.45;
+        // Playing angle = -0.44 rad (needle lands on outer lead-in groove at distance 2.08)
+        // Rest angle = +0.08 rad (needle rests on armrest post at right side)
+        const targetArmAngle = spinning ? -0.44 : 0.08;
+        const targetLiftAngle = spinning ? 0.0 : -0.04;
+
         meshes.tonearmGroup.rotation.y = THREE.MathUtils.lerp(
           meshes.tonearmGroup.rotation.y,
           targetArmAngle,
+          0.06
+        );
+        meshes.tonearmGroup.rotation.x = THREE.MathUtils.lerp(
+          meshes.tonearmGroup.rotation.x,
+          targetLiftAngle,
           0.08
         );
       }
@@ -323,12 +334,12 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
-  // 2. Instant Material / Texture Updates when project or slipmat changes
+  // 2. Instant Material / Texture Updates when project, slipmat, or resolution changes
   useEffect(() => {
     if (meshesRef.current) {
-      meshesRef.current.updateMaterials(project, slipmat);
+      meshesRef.current.updateMaterials(project, slipmat, resolution);
     }
-  }, [project, slipmat]);
+  }, [project, slipmat, resolution]);
 
   // 3. Camera adjustments on mode switch
   useEffect(() => {
@@ -566,6 +577,40 @@ export const StudioViewer: React.FC<StudioViewerProps> = ({ project, onUpdatePro
             <option value="sunset_haze" className="bg-zinc-900 text-zinc-200">Sunset Twilight</option>
             <option value="transparent_grid" className="bg-zinc-900 text-zinc-200">Technical Grid</option>
           </select>
+        </div>
+
+        {/* Quality / Level of Detail & Texture Resolution Selector */}
+        <div className="flex items-center bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-lg p-0.5 shadow">
+          <span className="text-[10px] text-zinc-500 px-2 flex items-center gap-1 font-mono">
+            <Sliders className="w-3 h-3 text-amber-400" />
+            RES:
+          </span>
+          {(['4k', '2k', 'hd'] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => {
+                setResolution(r);
+                if (meshesRef.current) {
+                  meshesRef.current.updateMaterials(project, slipmat, r);
+                }
+              }}
+              className={`px-2 py-0.5 rounded uppercase font-mono text-[10px] transition-colors ${
+                resolution === r
+                  ? 'bg-zinc-800 text-white font-bold shadow'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title={
+                r === '4k'
+                  ? 'Ultra 4K: 2048px resolution with 16x Anisotropic filtering'
+                  : r === '2k'
+                  ? 'High 2K: 1536px resolution with 8x Anisotropic filtering'
+                  : 'Fast HD: 1024px resolution with 4x Anisotropic filtering'
+              }
+            >
+              {r}
+            </button>
+          ))}
         </div>
       </div>
 

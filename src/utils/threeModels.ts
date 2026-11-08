@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ProjectData, SlipmatStyle } from '../types';
+import { ProjectData, SlipmatStyle, StudioResolution } from '../types';
 import {
   createVinylFaceTexture,
   createJacketFrontTexture,
@@ -16,13 +16,14 @@ export interface BuiltStudioMeshes {
   innerSleeveGroup: THREE.Group;
   turntableGroup: THREE.Group;
   tonearmGroup: THREE.Group;
-  updateMaterials: (project: ProjectData, slipmat: SlipmatStyle) => void;
+  updateMaterials: (project: ProjectData, slipmat: SlipmatStyle, res?: StudioResolution) => void;
 }
 
 export function buildStudioSceneMeshes(
   project: ProjectData,
   slipmat: SlipmatStyle,
-  onTextureUpdated?: () => void
+  onTextureUpdated?: () => void,
+  res: StudioResolution = '4k'
 ): BuiltStudioMeshes {
   // 1. VINYL DISC GROUP
   const vinylGroup = new THREE.Group();
@@ -31,8 +32,8 @@ export function buildStudioSceneMeshes(
   const radius = 2.4;
   const thickness = project?.vinyl?.weight === '180g' ? 0.05 : 0.038;
 
-  let texSideA = createVinylFaceTexture(project, 'A', onTextureUpdated);
-  let texSideB = createVinylFaceTexture(project, 'B', onTextureUpdated);
+  let texSideA = createVinylFaceTexture(project, 'A', onTextureUpdated, res);
+  let texSideB = createVinylFaceTexture(project, 'B', onTextureUpdated, res);
 
   const isTransparent = project?.vinyl?.baseMaterial === 'translucent' || project?.vinyl?.colorStyle === 'transparent';
   const transparencyVal = project?.vinyl?.transparency || 0.85;
@@ -80,9 +81,9 @@ export function buildStudioSceneMeshes(
   const cardboardThickness = 0.015;
   const halfSpine = spineWidth / 2;
 
-  let frontTex = createJacketFrontTexture(project, onTextureUpdated);
-  let backTex = createJacketBackTexture(project, onTextureUpdated);
-  let spineTex = createJacketSpineTexture(project);
+  let frontTex = createJacketFrontTexture(project, onTextureUpdated, res);
+  let backTex = createJacketBackTexture(project, onTextureUpdated, res);
+  let spineTex = createJacketSpineTexture(project, res);
 
   const finish = project?.jacket?.finish;
   const cardstockRoughness = finish === 'gloss' ? 0.15 : finish === 'soft_touch' ? 0.75 : 0.55;
@@ -171,8 +172,8 @@ export function buildStudioSceneMeshes(
   const innerSpineWidth = 0.08;
   const innerPolyThickness = 0.008;
 
-  let innerFrontTex = createInnerSleeveTexture(project, 'front', onTextureUpdated);
-  let innerBackTex = createInnerSleeveTexture(project, 'back', onTextureUpdated);
+  let innerFrontTex = createInnerSleeveTexture(project, 'front', onTextureUpdated, res);
+  let innerBackTex = createInnerSleeveTexture(project, 'back', onTextureUpdated, res);
 
   const innerType = project?.innerSleeve?.type || 'anti_static_rice_paper';
   const isInnerRicePaper = innerType === 'anti_static_rice_paper' || innerType === 'japanese_u_bottom';
@@ -272,7 +273,7 @@ export function buildStudioSceneMeshes(
   turntableGroup.add(platter);
 
   // Slipmat
-  let slipmatTex = createSlipmatTexture(slipmat);
+  let slipmatTex = createSlipmatTexture(slipmat, res);
   const slipmatGeo = new THREE.CylinderGeometry(2.45, 2.45, 0.02, 48);
   const slipmatMat = new THREE.MeshStandardMaterial({
     map: slipmatTex,
@@ -303,65 +304,88 @@ export function buildStudioSceneMeshes(
   strobe.position.set(-3.1, 0.13, -2.4);
   turntableGroup.add(strobe);
 
-  // Tonearm assembly
+  // Tonearm assembly (Technics SL-style precision pivot & geometry)
   const tonearmGroup = new THREE.Group();
-  tonearmGroup.position.set(2.3, 0.25, -1.5);
+  tonearmGroup.position.set(2.1, 0.25, -1.4);
   tonearmGroup.name = 'TonearmGroup';
 
-  const baseGeo = new THREE.CylinderGeometry(0.45, 0.5, 0.35, 24);
-  const baseMat = new THREE.MeshStandardMaterial({ color: '#27272a', roughness: 0.3, metalness: 0.7 });
+  // Base gimbal ring & height tower
+  const baseGeo = new THREE.CylinderGeometry(0.38, 0.45, 0.3, 24);
+  const baseMat = new THREE.MeshStandardMaterial({ color: '#27272a', roughness: 0.35, metalness: 0.7 });
   const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+  baseMesh.position.y = 0.08;
   tonearmGroup.add(baseMesh);
 
-  const pivotGeo = new THREE.SphereGeometry(0.25, 16, 16);
-  const chromeMat = new THREE.MeshStandardMaterial({ color: '#f4f4f5', metalness: 0.95, roughness: 0.15 });
+  // Gimbal Pivot
+  const pivotGeo = new THREE.SphereGeometry(0.18, 16, 16);
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#f4f4f5', metalness: 0.95, roughness: 0.1 });
   const pivot = new THREE.Mesh(pivotGeo, chromeMat);
-  pivot.position.y = 0.25;
+  pivot.position.y = 0.22;
   tonearmGroup.add(pivot);
 
-  const cwGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.4, 20);
+  // Counterweight (rear)
+  const cwGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.35, 20);
   const cwMat = new THREE.MeshStandardMaterial({ color: '#09090b', roughness: 0.4, metalness: 0.6 });
   const cw = new THREE.Mesh(cwGeo, cwMat);
   cw.rotation.x = Math.PI / 2;
-  cw.position.set(0, 0.25, -0.6);
+  cw.position.set(0, 0.22, -0.42);
   tonearmGroup.add(cw);
 
-  const armTubeGeo = new THREE.CylinderGeometry(0.04, 0.04, 3.4, 16);
+  // S-Shaped Tone Tube (Length 2.05)
+  const armTubeGeo = new THREE.CylinderGeometry(0.035, 0.035, 2.0, 16);
   const armTube = new THREE.Mesh(armTubeGeo, chromeMat);
   armTube.rotation.x = Math.PI / 2;
-  armTube.position.set(-0.25, 0.25, 1.4);
+  armTube.position.set(0, 0.22, 0.95);
   armTube.castShadow = true;
   tonearmGroup.add(armTube);
 
-  const headshellGeo = new THREE.BoxGeometry(0.18, 0.12, 0.45);
-  const headshellMat = new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.5 });
+  // Headshell & Cartridge at Tip with 20-degree inward offset
+  const headshellGeo = new THREE.BoxGeometry(0.14, 0.09, 0.32);
+  const headshellMat = new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.45 });
   const headshell = new THREE.Mesh(headshellGeo, headshellMat);
-  headshell.position.set(-0.25, 0.21, 3.1);
+  headshell.position.set(-0.06, 0.18, 1.95);
+  headshell.rotation.y = -0.32;
 
-  const needleGeo = new THREE.BoxGeometry(0.08, 0.06, 0.08);
-  const needleMat = new THREE.MeshStandardMaterial({ color: '#f43f5e', emissive: '#f43f5e', emissiveIntensity: 0.4 });
+  // Stylus Red Tip Needle
+  const needleGeo = new THREE.BoxGeometry(0.06, 0.08, 0.06);
+  const needleMat = new THREE.MeshStandardMaterial({ color: '#f43f5e', emissive: '#f43f5e', emissiveIntensity: 0.6 });
   const needle = new THREE.Mesh(needleGeo, needleMat);
-  needle.position.set(0, -0.06, 0.12);
+  needle.position.set(0, -0.06, 0.06);
   headshell.add(needle);
 
   tonearmGroup.add(headshell);
   turntableGroup.add(tonearmGroup);
 
+  // Armrest Clip post on the plinth right side
+  const armrestGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.32, 16);
+  const armrestMat = new THREE.MeshStandardMaterial({ color: '#27272a', roughness: 0.5 });
+  const armrest = new THREE.Mesh(armrestGeo, armrestMat);
+  armrest.position.set(2.26, 0.16, 0.62);
+  turntableGroup.add(armrest);
+
   // Materials updater
-  const updateMaterials = (newProject: ProjectData, newSlipmat: SlipmatStyle) => {
+  const updateMaterials = (
+    newProject: ProjectData,
+    newSlipmat: SlipmatStyle,
+    newRes: StudioResolution = '4k'
+  ) => {
     texSideA.dispose();
     texSideB.dispose();
     frontTex.dispose();
     backTex.dispose();
     spineTex.dispose();
     slipmatTex.dispose();
+    innerFrontTex.dispose();
+    innerBackTex.dispose();
 
-    texSideA = createVinylFaceTexture(newProject, 'A', onTextureUpdated);
-    texSideB = createVinylFaceTexture(newProject, 'B', onTextureUpdated);
-    frontTex = createJacketFrontTexture(newProject, onTextureUpdated);
-    backTex = createJacketBackTexture(newProject, onTextureUpdated);
-    spineTex = createJacketSpineTexture(newProject);
-    slipmatTex = createSlipmatTexture(newSlipmat);
+    texSideA = createVinylFaceTexture(newProject, 'A', onTextureUpdated, newRes);
+    texSideB = createVinylFaceTexture(newProject, 'B', onTextureUpdated, newRes);
+    frontTex = createJacketFrontTexture(newProject, onTextureUpdated, newRes);
+    backTex = createJacketBackTexture(newProject, onTextureUpdated, newRes);
+    spineTex = createJacketSpineTexture(newProject, newRes);
+    slipmatTex = createSlipmatTexture(newSlipmat, newRes);
+    innerFrontTex = createInnerSleeveTexture(newProject, 'front', onTextureUpdated, newRes);
+    innerBackTex = createInnerSleeveTexture(newProject, 'back', onTextureUpdated, newRes);
 
     matA.map = texSideA;
     matA.needsUpdate = true;
